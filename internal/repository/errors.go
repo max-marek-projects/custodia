@@ -1,0 +1,11 @@
+package repository
+
+import (
+	"errors"
+)
+
+// ErrUserNotFound is returned when a user login does not exist.
+var ErrUserNotFound = errors.New("user not found in storage")
+
+// ErrAlreadyInStorage is returned when attempting to insert a duplicate record.
+var ErrAlreadyInStorage = errors.New("item already exists in storage")
