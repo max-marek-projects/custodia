@@ -97,6 +97,8 @@ func (dbs *dbStorage) runMigrations() error {
 	return nil
 }
 
+// ========== AUTH ===========
+
 // RegisterUser inserts a new user into the database.
 // Parameters:
 //   - userData: login and hashed password.
@@ -122,9 +124,9 @@ func (dbs *dbStorage) RegisterUser(ctx context.Context, userData models.UserData
 
 // CheckUser retrieves user ID and hashed password by login.
 // Returns ErrUserNotFound if the login does not exist.
-func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, string, error) {
+func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, []byte, error) {
 	var userID int64
-	var hashedPassword string
+	var hashedPassword []byte
 	query := `--sql
         SELECT id, password_hash FROM users
 		WHERE username = $1;
@@ -132,9 +134,66 @@ func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, st
 	err := dbs.storage.QueryRowContext(ctx, query, username).Scan(&userID, &hashedPassword)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, "", ErrUserNotFound
+			return 0, nil, ErrUserNotFound
 		}
-		return 0, "", fmt.Errorf("failed to get user from storage by id: %w", err)
+		return 0, nil, fmt.Errorf("failed to get user from storage by id: %w", err)
 	}
 	return userID, hashedPassword, nil
+}
+
+// SaveRefreshToken saves refresh token to storage
+func (dbs *dbStorage) SaveRefreshToken(ctx context.Context, userID int64, tokenHash []byte, deviceName string, ttl time.Duration) error {
+	// create transaction
+	tx, err := dbs.storage.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	err = dbs.RevokeToken(ctx, userID, deviceName)
+	if err != nil {
+		return err
+	}
+	expiresAt := time.Now().Add(ttl)
+	_, err = dbs.storage.ExecContext(ctx, `
+        INSERT INTO tokens (user_id, token_hash, expires_at, device_name)
+        VALUES ($1, $2, $3, $4)
+    `, userID, tokenHash, expiresAt, deviceName)
+	return err
+}
+
+// CheckRefreshToken checks refresh token
+func (dbs *dbStorage) CheckRefreshToken(ctx context.Context, userID int64, tokenHash []byte, deviceName string) error {
+	var unusedVar int
+	err := dbs.storage.QueryRowContext(ctx, `
+        SELECT 1
+        FROM tokens
+        WHERE user_id = $1 AND token_hash = $2 AND device_name = $3 AND revoked_at IS NULL AND expires_at > NOW() 
+    `, userID, tokenHash, deviceName).Scan(&unusedVar)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRefreshTokenExpiredOrInvalid
+		}
+		return err
+	}
+	return nil
+}
+
+// RevokeToken revokes refresh token in storage based on user id and device name
+func (dbs *dbStorage) RevokeToken(ctx context.Context, userID int64, deviceName string) error {
+	_, err := dbs.storage.ExecContext(ctx, `
+        UPDATE tokens
+        SET revoked_at = NOW()
+        WHERE user_id = $1 AND device_name = $2 AND revoked_at IS NULL
+    `, userID, deviceName)
+	return err
+}
+
+// RevokeToken revokes all refresh tokens in storage based on user id
+func (dbs *dbStorage) RevokeAllTokens(ctx context.Context, userID int64) error {
+	_, err := dbs.storage.ExecContext(ctx, `
+        UPDATE tokens
+        SET revoked_at = NOW()
+        WHERE user_id = $1 AND revoked_at IS NULL
+    `, userID)
+	return err
 }

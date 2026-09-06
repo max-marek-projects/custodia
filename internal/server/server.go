@@ -2,60 +2,93 @@
 package server
 
 import (
+	"context"
+	"crypto/tls"
+	"fmt"
 	"log/slog"
-	"net/http"
+	"net"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/max-marek-projects/custodia/internal/handlers"
+	"github.com/max-marek-projects/custodia/internal/interceptors"
 	"github.com/max-marek-projects/custodia/internal/logger"
-	"github.com/max-marek-projects/custodia/internal/middlewares"
+	"github.com/max-marek-projects/custodia/pkg/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
-// Server wraps http.Server with custom configuration.
-type Server struct {
-	http.Server
+// CreateTLSConf creates TLS configuration for server.
+func CreateTLSConf(certificate, key string) (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(certificate, key)
+	if err != nil {
+		return nil, err
+	}
+	tlsConf := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+	logger.Log.Info("TLS configuration created")
+	return tlsConf, nil
 }
 
-// NewServer creates a new HTTP server with routes and middlewares.
-// Parameters:
-//   - addr: listening address (e.g., ":8080").
-//   - h: handler instance with business logic.
-//   - readTimeout, writeTimeout: timeouts for server.
-//   - cookieSecret: secret key for auth middleware.
-//
-// Returns a configured Server pointer.
-func NewServer(addr string, h *handlers.Handler, readTimeout, writeTimeout time.Duration, cookieSecret string) *Server {
-	r := chi.NewRouter()
+// Server wraps an http.Server with pre-configured middleware and routes.
+type Server struct {
+	*grpc.Server
+	Addr string
+}
 
-	//middlewares
-	r.Use(middleware.Recoverer)
-	r.Use(middlewares.RequestsLogger)
-
-	r.Route("/api/user", func(api chi.Router) {
-		// public endpoints
-		api.Post("/register", h.RegisterUser)
-		api.Post("/login", h.LoginUser)
-		// protected endpoints
-		api.Group(func(protected chi.Router) {
-			protected.Use(middlewares.AuthMiddleware(cookieSecret))
-		})
-	})
-
+// NewServer creates a new Server instance with the given address, handler, timeouts, auditor, and cookie secret.
+// It sets up chi router with all necessary middleware and routes:
+// - Recoverer, Gzip, Logger, Audit middleware for all routes.
+// - Public routes: /ping, /{id}
+// - Protected routes (with AuthMiddleware): POST /, /api/shorten, /api/shorten/batch, /api/user/urls (GET/DELETE).
+func NewServer(
+	addr string,
+	h *handlers.GRPCHandler,
+	readTimeout, writeTimeout time.Duration,
+	cookieSecret string,
+	tlsConfig *tls.Config,
+) *Server {
+	var opts []grpc.ServerOption
+	if tlsConfig != nil {
+		creds := credentials.NewTLS(tlsConfig)
+		opts = append(opts, grpc.Creds(creds))
+	}
+	opts = append(opts,
+		grpc.ChainUnaryInterceptor(
+			interceptors.GRPCAuthInterceptor(cookieSecret),
+		),
+	)
+	server := grpc.NewServer(opts...)
+	proto.RegisterCustodiaServer(server, h)
 	return &Server{
-		Server: http.Server{
-			Addr:         addr,
-			Handler:      r,
-			ReadTimeout:  readTimeout,
-			WriteTimeout: writeTimeout,
-		},
+		Server: server,
+		Addr:   addr,
 	}
 }
 
 // ListenAndServe starts the HTTP server and logs the address.
 // Returns an error if the server cannot start.
 func (s *Server) ListenAndServe() error {
-	logger.Log.Info("Starting server", slog.String("address", s.Addr))
-	return s.Server.ListenAndServe()
+	logger.Log.Info("Starting GRPC server", slog.String("address", s.Addr))
+	listener, err := net.Listen("tcp", s.Addr)
+	if err != nil {
+		return fmt.Errorf("create grpc listener: %w", err)
+	}
+	if err := s.Serve(listener); err != nil {
+		logger.Log.Error(
+			"grpc server stopped",
+			slog.Any("error", err),
+		)
+		return err
+	}
+	return nil
+}
+
+// Shutdown stops the HTTP server.
+// Expects context.
+// Returns an error if the server wasn't closed properly.
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.GracefulStop()
+	return nil
 }

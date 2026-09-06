@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package custodia;
+
+option go_package = "github.com/max-marek-projects/custodia/pkg/proto;proto";
+
+service Custodia {
+  rpc RegisterUser (LoginRequest) returns (LoginResponse);
+  rpc LoginUser (LoginRequest) returns (LoginResponse);
+  rpc Refresh (RefreshRequest) returns (RefreshResponse);
+}
+
+message LoginRequest {
+	string login = 1;
+	string password = 2;
+  string device_name = 3;
+}
+
+message LoginResponse {
+  int64 user_id = 1;
+  string access_token = 2;
+  bytes refresh_token = 3;
+}
+
+message RefreshRequest {
+  int64 user_id = 1;
+  bytes refresh_token = 2;
+  string device_name = 3;
+}
+
+message RefreshResponse {
+  string access_token = 1;
+}

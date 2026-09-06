@@ -1,0 +1,87 @@
+package client
+
+import (
+	"encoding/json"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"sync"
+
+	"github.com/max-marek-projects/custodia/internal/logger"
+	"github.com/max-marek-projects/custodia/internal/models"
+)
+
+// tokenStorage содержит токены и ID пользователя
+type tokenStorage struct {
+	folder   string
+	filename string
+	mu       sync.RWMutex
+}
+
+func newTokenStorage(folder, filename string) *tokenStorage {
+	return &tokenStorage{folder: folder, filename: filename}
+}
+
+func (t *tokenStorage) getFilePath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	appConfigDir := filepath.Join(configDir, "custodia")
+	err = os.MkdirAll(appConfigDir, 0700)
+	if err != nil {
+		return "", err
+	}
+	tokenFilepath := filepath.Join(appConfigDir, "tokens.json")
+	logger.Log.Debug("token filepath", slog.String("filepath", tokenFilepath))
+	return tokenFilepath, nil
+}
+
+// Save saves tokens to file storage
+func (t *tokenStorage) Save(tokens *models.Tokens) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	tokensFilePath, err := t.getFilePath()
+	jsonData, err := json.MarshalIndent(tokens, "", "    ")
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(tokensFilePath, jsonData, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Read reads tokens from file
+func (t *tokenStorage) Read() (*models.Tokens, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	path, err := t.getFilePath()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &models.Tokens{}, nil
+		}
+		return nil, err
+	}
+	var s models.Tokens
+	if err := json.Unmarshal(data, &s); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+// Clear removes tokens file
+func (t *tokenStorage) Clear() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	path, err := t.getFilePath()
+	if err != nil {
+		return err
+	}
+	return os.Remove(path)
+}

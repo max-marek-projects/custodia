@@ -16,6 +16,7 @@ type DBConf struct {
 // NewDBConf creates a DBConf with default connection pool settings and the given database URL.
 // Parameters:
 //   - dbURL: database connection string.
+//
 // Returns a pointer to the initialized DBConf.
 func NewDBConf(dbURL string, forceMigrations bool) *DBConf {
 	return &DBConf{
