@@ -17,6 +17,8 @@ type Service interface {
 	RegisterUser(ctx context.Context, userData *models.LoginRequest) (*models.LoginResponse, error)
 	LoginUser(ctx context.Context, userData *models.LoginRequest) (*models.LoginResponse, error)
 	RefreshAccess(ctx context.Context, userID int64, refreshToken []byte, deviceName string) (string, error)
+	Logout(ctx context.Context, userID int64, deviceName string) error
+	LogoutAllDevices(ctx context.Context, userID int64) error
 }
 
 // NewService creates a service instance with the given storage and accrual system address.
@@ -119,4 +121,22 @@ func (service *service) RefreshAccess(ctx context.Context, userID int64, refresh
 		return "", fmt.Errorf("failed to generate access token: %v", err)
 	}
 	return accessToken, nil
+}
+
+// Logout logs current user out.
+func (service *service) Logout(ctx context.Context, userID int64, deviceName string) error {
+	err := service.storage.RevokeToken(ctx, userID, deviceName)
+	if err != nil {
+		return fmt.Errorf("failed to revoke token: %v", err)
+	}
+	return nil
+}
+
+// Logout logs current user out from all devices
+func (service *service) LogoutAllDevices(ctx context.Context, userID int64) error {
+	err := service.storage.RevokeAllTokens(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to revoke all tokens: %v", err)
+	}
+	return nil
 }

@@ -8,6 +8,8 @@ service Custodia {
   rpc RegisterUser (LoginRequest) returns (LoginResponse);
   rpc LoginUser (LoginRequest) returns (LoginResponse);
   rpc Refresh (RefreshRequest) returns (RefreshResponse);
+  rpc LogoutDevice (LogoutDeviceRequest) returns (LogoutDeviceResponse);
+  rpc LogoutAllDevices (LogoutAllDevicesRequest) returns (LogoutAllDevicesResponse);
 }
 
 message LoginRequest {
@@ -31,3 +33,13 @@ message RefreshRequest {
 message RefreshResponse {
   string access_token = 1;
 }
+
+message LogoutDeviceRequest {
+  string device_name = 2;
+}
+
+message LogoutDeviceResponse {}
+
+message LogoutAllDevicesRequest {}
+
+message LogoutAllDevicesResponse {}

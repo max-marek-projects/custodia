@@ -338,6 +338,192 @@ func (b0 RefreshResponse_builder) Build() *RefreshResponse {
 	return m0
 }
 
+type LogoutDeviceRequest struct {
+	state                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_DeviceName string                 `protobuf:"bytes,2,opt,name=device_name,json=deviceName,proto3"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *LogoutDeviceRequest) Reset() {
+	*x = LogoutDeviceRequest{}
+	mi := &file_api_custodia_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutDeviceRequest) ProtoMessage() {}
+
+func (x *LogoutDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *LogoutDeviceRequest) GetDeviceName() string {
+	if x != nil {
+		return x.xxx_hidden_DeviceName
+	}
+	return ""
+}
+
+func (x *LogoutDeviceRequest) SetDeviceName(v string) {
+	x.xxx_hidden_DeviceName = v
+}
+
+type LogoutDeviceRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	DeviceName string
+}
+
+func (b0 LogoutDeviceRequest_builder) Build() *LogoutDeviceRequest {
+	m0 := &LogoutDeviceRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_DeviceName = b.DeviceName
+	return m0
+}
+
+type LogoutDeviceResponse struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutDeviceResponse) Reset() {
+	*x = LogoutDeviceResponse{}
+	mi := &file_api_custodia_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutDeviceResponse) ProtoMessage() {}
+
+func (x *LogoutDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type LogoutDeviceResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 LogoutDeviceResponse_builder) Build() *LogoutDeviceResponse {
+	m0 := &LogoutDeviceResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type LogoutAllDevicesRequest struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutAllDevicesRequest) Reset() {
+	*x = LogoutAllDevicesRequest{}
+	mi := &file_api_custodia_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutAllDevicesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutAllDevicesRequest) ProtoMessage() {}
+
+func (x *LogoutAllDevicesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type LogoutAllDevicesRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 LogoutAllDevicesRequest_builder) Build() *LogoutAllDevicesRequest {
+	m0 := &LogoutAllDevicesRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type LogoutAllDevicesResponse struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutAllDevicesResponse) Reset() {
+	*x = LogoutAllDevicesResponse{}
+	mi := &file_api_custodia_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutAllDevicesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutAllDevicesResponse) ProtoMessage() {}
+
+func (x *LogoutAllDevicesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type LogoutAllDevicesResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 LogoutAllDevicesResponse_builder) Build() *LogoutAllDevicesResponse {
+	m0 := &LogoutAllDevicesResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
 var File_api_custodia_proto protoreflect.FileDescriptor
 
 const file_api_custodia_proto_rawDesc = "" +
@@ -358,28 +544,44 @@ const file_api_custodia_proto_rawDesc = "" +
 	"\vdevice_name\x18\x03 \x01(\tR\n" +
 	"deviceName\"4\n" +
 	"\x0fRefreshResponse\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken2\xc9\x01\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"6\n" +
+	"\x13LogoutDeviceRequest\x12\x1f\n" +
+	"\vdevice_name\x18\x02 \x01(\tR\n" +
+	"deviceName\"\x16\n" +
+	"\x14LogoutDeviceResponse\"\x19\n" +
+	"\x17LogoutAllDevicesRequest\"\x1a\n" +
+	"\x18LogoutAllDevicesResponse2\xf3\x02\n" +
 	"\bCustodia\x12?\n" +
 	"\fRegisterUser\x12\x16.custodia.LoginRequest\x1a\x17.custodia.LoginResponse\x12<\n" +
 	"\tLoginUser\x12\x16.custodia.LoginRequest\x1a\x17.custodia.LoginResponse\x12>\n" +
-	"\aRefresh\x12\x18.custodia.RefreshRequest\x1a\x19.custodia.RefreshResponseB8Z6github.com/max-marek-projects/custodia/pkg/proto;protob\x06proto3"
+	"\aRefresh\x12\x18.custodia.RefreshRequest\x1a\x19.custodia.RefreshResponse\x12M\n" +
+	"\fLogoutDevice\x12\x1d.custodia.LogoutDeviceRequest\x1a\x1e.custodia.LogoutDeviceResponse\x12Y\n" +
+	"\x10LogoutAllDevices\x12!.custodia.LogoutAllDevicesRequest\x1a\".custodia.LogoutAllDevicesResponseB8Z6github.com/max-marek-projects/custodia/pkg/proto;protob\x06proto3"
 
-var file_api_custodia_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_custodia_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_custodia_proto_goTypes = []any{
-	(*LoginRequest)(nil),    // 0: custodia.LoginRequest
-	(*LoginResponse)(nil),   // 1: custodia.LoginResponse
-	(*RefreshRequest)(nil),  // 2: custodia.RefreshRequest
-	(*RefreshResponse)(nil), // 3: custodia.RefreshResponse
+	(*LoginRequest)(nil),             // 0: custodia.LoginRequest
+	(*LoginResponse)(nil),            // 1: custodia.LoginResponse
+	(*RefreshRequest)(nil),           // 2: custodia.RefreshRequest
+	(*RefreshResponse)(nil),          // 3: custodia.RefreshResponse
+	(*LogoutDeviceRequest)(nil),      // 4: custodia.LogoutDeviceRequest
+	(*LogoutDeviceResponse)(nil),     // 5: custodia.LogoutDeviceResponse
+	(*LogoutAllDevicesRequest)(nil),  // 6: custodia.LogoutAllDevicesRequest
+	(*LogoutAllDevicesResponse)(nil), // 7: custodia.LogoutAllDevicesResponse
 }
 var file_api_custodia_proto_depIdxs = []int32{
 	0, // 0: custodia.Custodia.RegisterUser:input_type -> custodia.LoginRequest
 	0, // 1: custodia.Custodia.LoginUser:input_type -> custodia.LoginRequest
 	2, // 2: custodia.Custodia.Refresh:input_type -> custodia.RefreshRequest
-	1, // 3: custodia.Custodia.RegisterUser:output_type -> custodia.LoginResponse
-	1, // 4: custodia.Custodia.LoginUser:output_type -> custodia.LoginResponse
-	3, // 5: custodia.Custodia.Refresh:output_type -> custodia.RefreshResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	4, // 3: custodia.Custodia.LogoutDevice:input_type -> custodia.LogoutDeviceRequest
+	6, // 4: custodia.Custodia.LogoutAllDevices:input_type -> custodia.LogoutAllDevicesRequest
+	1, // 5: custodia.Custodia.RegisterUser:output_type -> custodia.LoginResponse
+	1, // 6: custodia.Custodia.LoginUser:output_type -> custodia.LoginResponse
+	3, // 7: custodia.Custodia.Refresh:output_type -> custodia.RefreshResponse
+	5, // 8: custodia.Custodia.LogoutDevice:output_type -> custodia.LogoutDeviceResponse
+	7, // 9: custodia.Custodia.LogoutAllDevices:output_type -> custodia.LogoutAllDevicesResponse
+	5, // [5:10] is the sub-list for method output_type
+	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -396,7 +598,7 @@ func file_api_custodia_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_custodia_proto_rawDesc), len(file_api_custodia_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

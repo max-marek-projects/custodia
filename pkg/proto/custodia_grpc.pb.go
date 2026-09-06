@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Custodia_RegisterUser_FullMethodName = "/custodia.Custodia/RegisterUser"
-	Custodia_LoginUser_FullMethodName    = "/custodia.Custodia/LoginUser"
-	Custodia_Refresh_FullMethodName      = "/custodia.Custodia/Refresh"
+	Custodia_RegisterUser_FullMethodName     = "/custodia.Custodia/RegisterUser"
+	Custodia_LoginUser_FullMethodName        = "/custodia.Custodia/LoginUser"
+	Custodia_Refresh_FullMethodName          = "/custodia.Custodia/Refresh"
+	Custodia_LogoutDevice_FullMethodName     = "/custodia.Custodia/LogoutDevice"
+	Custodia_LogoutAllDevices_FullMethodName = "/custodia.Custodia/LogoutAllDevices"
 )
 
 // CustodiaClient is the client API for Custodia service.
@@ -31,6 +33,8 @@ type CustodiaClient interface {
 	RegisterUser(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	LoginUser(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
+	LogoutDevice(ctx context.Context, in *LogoutDeviceRequest, opts ...grpc.CallOption) (*LogoutDeviceResponse, error)
+	LogoutAllDevices(ctx context.Context, in *LogoutAllDevicesRequest, opts ...grpc.CallOption) (*LogoutAllDevicesResponse, error)
 }
 
 type custodiaClient struct {
@@ -71,6 +75,26 @@ func (c *custodiaClient) Refresh(ctx context.Context, in *RefreshRequest, opts .
 	return out, nil
 }
 
+func (c *custodiaClient) LogoutDevice(ctx context.Context, in *LogoutDeviceRequest, opts ...grpc.CallOption) (*LogoutDeviceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutDeviceResponse)
+	err := c.cc.Invoke(ctx, Custodia_LogoutDevice_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *custodiaClient) LogoutAllDevices(ctx context.Context, in *LogoutAllDevicesRequest, opts ...grpc.CallOption) (*LogoutAllDevicesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutAllDevicesResponse)
+	err := c.cc.Invoke(ctx, Custodia_LogoutAllDevices_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CustodiaServer is the server API for Custodia service.
 // All implementations must embed UnimplementedCustodiaServer
 // for forward compatibility.
@@ -78,6 +102,8 @@ type CustodiaServer interface {
 	RegisterUser(context.Context, *LoginRequest) (*LoginResponse, error)
 	LoginUser(context.Context, *LoginRequest) (*LoginResponse, error)
 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
+	LogoutDevice(context.Context, *LogoutDeviceRequest) (*LogoutDeviceResponse, error)
+	LogoutAllDevices(context.Context, *LogoutAllDevicesRequest) (*LogoutAllDevicesResponse, error)
 	mustEmbedUnimplementedCustodiaServer()
 }
 
@@ -96,6 +122,12 @@ func (UnimplementedCustodiaServer) LoginUser(context.Context, *LoginRequest) (*L
 }
 func (UnimplementedCustodiaServer) Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Refresh not implemented")
+}
+func (UnimplementedCustodiaServer) LogoutDevice(context.Context, *LogoutDeviceRequest) (*LogoutDeviceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LogoutDevice not implemented")
+}
+func (UnimplementedCustodiaServer) LogoutAllDevices(context.Context, *LogoutAllDevicesRequest) (*LogoutAllDevicesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LogoutAllDevices not implemented")
 }
 func (UnimplementedCustodiaServer) mustEmbedUnimplementedCustodiaServer() {}
 func (UnimplementedCustodiaServer) testEmbeddedByValue()                  {}
@@ -172,6 +204,42 @@ func _Custodia_Refresh_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Custodia_LogoutDevice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutDeviceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).LogoutDevice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_LogoutDevice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).LogoutDevice(ctx, req.(*LogoutDeviceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Custodia_LogoutAllDevices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutAllDevicesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).LogoutAllDevices(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_LogoutAllDevices_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).LogoutAllDevices(ctx, req.(*LogoutAllDevicesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Custodia_ServiceDesc is the grpc.ServiceDesc for Custodia service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +258,14 @@ var Custodia_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Refresh",
 			Handler:    _Custodia_Refresh_Handler,
+		},
+		{
+			MethodName: "LogoutDevice",
+			Handler:    _Custodia_LogoutDevice_Handler,
+		},
+		{
+			MethodName: "LogoutAllDevices",
+			Handler:    _Custodia_LogoutAllDevices_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -20,17 +20,21 @@ type client struct {
 
 // NewHandler creates a new GRPCHandler.
 func NewClient(addr, folder, filename string) (*client, error) {
+	clientItem := &client{storage: newTokenStorage(folder, filename)}
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
 	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+		grpc.WithChainUnaryInterceptor(clientItem.authInterceptor()),
 	)
 	if err != nil {
 		return nil, err
 	}
-	return &client{connection: conn, client: proto.NewCustodiaClient(conn), storage: newTokenStorage(folder, filename)}, nil
+	clientItem.connection = conn
+	clientItem.client = proto.NewCustodiaClient(conn)
+	return clientItem, nil
 }
 
 func (c *client) getDeviceName() (string, error) {
@@ -127,4 +131,33 @@ func (c *client) RefreshAccess(
 			AccessToken:  resp.GetAccessToken(),
 			RefreshToken: tokenData.RefreshToken,
 		})
+}
+
+func (c *client) Logout(
+	ctx context.Context,
+	allDevices bool,
+) error {
+	var err error
+	if allDevices {
+		request := &proto.LogoutAllDevicesRequest{}
+		_, err = c.client.LogoutAllDevices(
+			ctx,
+			request,
+		)
+	} else {
+		request := &proto.LogoutDeviceRequest{}
+		deviceName, dErr := c.getDeviceName()
+		if dErr != nil {
+			return dErr
+		}
+		request.SetDeviceName(deviceName)
+		_, err = c.client.LogoutDevice(
+			ctx,
+			request,
+		)
+	}
+	if err != nil {
+		return err
+	}
+	return c.storage.Clear()
 }

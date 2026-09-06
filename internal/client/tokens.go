@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -83,5 +84,9 @@ func (t *tokenStorage) Clear() error {
 	if err != nil {
 		return err
 	}
-	return os.Remove(path)
+	err = os.Remove(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }

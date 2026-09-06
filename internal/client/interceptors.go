@@ -4,9 +4,9 @@ package client
 import (
 	"context"
 
+	"github.com/max-marek-projects/custodia/internal/requests"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -18,7 +18,10 @@ func (c *client) authInterceptor() grpc.UnaryClientInterceptor {
 			return err
 		}
 		if access.AccessToken != "" {
-			ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+access.AccessToken)
+			ctx, err = requests.SetAccessTokenToMetadata(ctx, access.AccessToken)
+			if err != nil {
+				return err
+			}
 		}
 		err = invoker(ctx, method, req, reply, cc, opts...)
 		if err != nil && status.Code(err) == codes.Unauthenticated {
@@ -29,7 +32,12 @@ func (c *client) authInterceptor() grpc.UnaryClientInterceptor {
 			if err != nil {
 				return err
 			}
-			ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+access.AccessToken)
+			if access.AccessToken != "" {
+				ctx, err = requests.SetAccessTokenToMetadata(ctx, access.AccessToken)
+				if err != nil {
+					return err
+				}
+			}
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
 

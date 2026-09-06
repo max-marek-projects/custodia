@@ -7,6 +7,7 @@ import (
 
 	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
+	"github.com/max-marek-projects/custodia/internal/requests"
 	"github.com/max-marek-projects/custodia/internal/service"
 	"github.com/max-marek-projects/custodia/pkg/proto"
 	"google.golang.org/grpc/codes"
@@ -138,4 +139,52 @@ func (h *GRPCHandler) Refresh(
 	response := &proto.RefreshResponse{}
 	response.SetAccessToken(accessToken)
 	return response, nil
+}
+
+// Logout logs current user out.
+func (h *GRPCHandler) LogoutDevice(
+	ctx context.Context,
+	req *proto.LogoutDeviceRequest,
+) (*proto.LogoutDeviceResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.Logout(ctx, userID, req.GetDeviceName())
+	if err != nil {
+		logger.Log.Error("Failed to logout user", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	return &proto.LogoutDeviceResponse{}, nil
+}
+
+// Logout logs current user out.
+func (h *GRPCHandler) LogoutAllDevices(
+	ctx context.Context,
+	req *proto.LogoutAllDevicesRequest,
+) (*proto.LogoutAllDevicesResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.LogoutAllDevices(ctx, userID)
+	if err != nil {
+		logger.Log.Error("Failed to logout user from all devices", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	return &proto.LogoutAllDevicesResponse{}, nil
 }
