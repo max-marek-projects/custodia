@@ -1,8 +1,9 @@
-// Package interceptors provides GRPC interceptors for request processing.
+// Package interceptors provides gRPC interceptors for request processing.
 package interceptors
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/max-marek-projects/custodia/internal/requests"
@@ -11,11 +12,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthMiddleware returns a middleware that validates the JWT cookie.
-// Parameters:
-//   - secretKey: key used to verify the JWT signature.
+// GRPCAuthInterceptor returns a unary server interceptor that validates JWT tokens
+// from the incoming gRPC metadata. It skips authentication for specified whitelisted
+// methods (LoginUser, RegisterUser, Refresh) and extracts the user ID from the token
+// for all other methods. On success, it adds the user ID to the request context.
 //
-// Returns a middleware function that rejects requests without a valid cookie.
+// Parameters:
+//   - secretKey: the secret key used to verify the JWT signature.
+//
+// Returns:
+//   - grpc.UnaryServerInterceptor: the interceptor function.
 func GRPCAuthInterceptor(
 	secretKey string,
 ) grpc.UnaryServerInterceptor {
@@ -36,7 +42,7 @@ func GRPCAuthInterceptor(
 		if err != nil {
 			return nil, status.Error(
 				codes.Unauthenticated,
-				"invalid authorization",
+				fmt.Sprintf("invalid authorization: %s", err),
 			)
 		}
 		ctx = requests.SetUserIDToContext(ctx, userID)

@@ -2,55 +2,63 @@
 
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/max-marek-projects/custodia/pkg/proto"
+)
 
 // ========== data types ==========
 
 type DataType string
 
 const (
-	DataTypeCredential DataType = "credential"
-	DataTypeText       DataType = "text"
-	DataTypeBinary     DataType = "binary"
-	DataTypeCard       DataType = "card"
+	DataTypeCredentials DataType = "credentials"
+	DataTypeText        DataType = "text"
+	DataTypeBinary      DataType = "binary"
+	DataTypeCard        DataType = "card"
 )
 
-// LoginPassword is the struct containing login and password.
-type LoginPassword struct {
-	Login    string
-	Password string
+var ProtoDataTypeToString = map[proto.DataType]DataType{
+	proto.DataType_DATA_TYPE_CREDENTIALS: DataTypeCredentials,
+	proto.DataType_DATA_TYPE_TEXT:        DataTypeText,
+	proto.DataType_DATA_TYPE_BINARY:      DataTypeBinary,
+	proto.DataType_DATA_TYPE_CARD:        DataTypeCard,
 }
 
-// SecretText is the struct containing secret text
-type SecretText struct {
-	Text string
+func init() {
+	StringDataTypeToProto := make(map[DataType]proto.DataType, len(ProtoDataTypeToString))
+	for k, v := range ProtoDataTypeToString {
+		StringDataTypeToProto[v] = k
+	}
 }
 
-// SecretBinary is the struct containing secret binary data
-type SecretBinary struct {
-	Binary string
+// Credentials is the struct containing login and password.
+type Credentials struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
 }
 
 // CardData is the struct containing secret card data.
 type CardData struct {
-	Number         string
-	HolderName     string
-	ExpirationDate time.Time
-	CVV            string
+	Number         string `json:"number"`
+	HolderName     string `json:"holder_name"`
+	ExpirationDate string `json:"expiration_date"`
+	CVV            string `json:"cvv"`
 }
 
 // ========== database ==========
 
-// DatabaseRow represents all data from single row of database table
-type DatabaseRow struct {
+// SecretData represents all data from single row of database table
+type SecretData struct {
 	ID        string
-	UserID    string
+	UserID    int64
 	Type      DataType
 	Name      string
 	Data      []byte
-	Metadata  string
+	Metadata  map[string]string
 	Version   int64
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Deleted   bool
+	DeletedAt *time.Time
 }

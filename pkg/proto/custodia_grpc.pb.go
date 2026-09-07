@@ -24,17 +24,23 @@ const (
 	Custodia_Refresh_FullMethodName          = "/custodia.Custodia/Refresh"
 	Custodia_LogoutDevice_FullMethodName     = "/custodia.Custodia/LogoutDevice"
 	Custodia_LogoutAllDevices_FullMethodName = "/custodia.Custodia/LogoutAllDevices"
+	Custodia_CreateSecret_FullMethodName     = "/custodia.Custodia/CreateSecret"
+	Custodia_GetSecret_FullMethodName        = "/custodia.Custodia/GetSecret"
 )
 
 // CustodiaClient is the client API for Custodia service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CustodiaClient interface {
+	// ========== AUTH ==========
 	RegisterUser(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	LoginUser(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
 	LogoutDevice(ctx context.Context, in *LogoutDeviceRequest, opts ...grpc.CallOption) (*LogoutDeviceResponse, error)
 	LogoutAllDevices(ctx context.Context, in *LogoutAllDevicesRequest, opts ...grpc.CallOption) (*LogoutAllDevicesResponse, error)
+	// ========== SECRETS ==========
+	CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*CreateSecretResponse, error)
+	GetSecret(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*GetSecretResponse, error)
 }
 
 type custodiaClient struct {
@@ -95,15 +101,39 @@ func (c *custodiaClient) LogoutAllDevices(ctx context.Context, in *LogoutAllDevi
 	return out, nil
 }
 
+func (c *custodiaClient) CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*CreateSecretResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateSecretResponse)
+	err := c.cc.Invoke(ctx, Custodia_CreateSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *custodiaClient) GetSecret(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*GetSecretResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSecretResponse)
+	err := c.cc.Invoke(ctx, Custodia_GetSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CustodiaServer is the server API for Custodia service.
 // All implementations must embed UnimplementedCustodiaServer
 // for forward compatibility.
 type CustodiaServer interface {
+	// ========== AUTH ==========
 	RegisterUser(context.Context, *LoginRequest) (*LoginResponse, error)
 	LoginUser(context.Context, *LoginRequest) (*LoginResponse, error)
 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
 	LogoutDevice(context.Context, *LogoutDeviceRequest) (*LogoutDeviceResponse, error)
 	LogoutAllDevices(context.Context, *LogoutAllDevicesRequest) (*LogoutAllDevicesResponse, error)
+	// ========== SECRETS ==========
+	CreateSecret(context.Context, *CreateSecretRequest) (*CreateSecretResponse, error)
+	GetSecret(context.Context, *GetSecretRequest) (*GetSecretResponse, error)
 	mustEmbedUnimplementedCustodiaServer()
 }
 
@@ -128,6 +158,12 @@ func (UnimplementedCustodiaServer) LogoutDevice(context.Context, *LogoutDeviceRe
 }
 func (UnimplementedCustodiaServer) LogoutAllDevices(context.Context, *LogoutAllDevicesRequest) (*LogoutAllDevicesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LogoutAllDevices not implemented")
+}
+func (UnimplementedCustodiaServer) CreateSecret(context.Context, *CreateSecretRequest) (*CreateSecretResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateSecret not implemented")
+}
+func (UnimplementedCustodiaServer) GetSecret(context.Context, *GetSecretRequest) (*GetSecretResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSecret not implemented")
 }
 func (UnimplementedCustodiaServer) mustEmbedUnimplementedCustodiaServer() {}
 func (UnimplementedCustodiaServer) testEmbeddedByValue()                  {}
@@ -240,6 +276,42 @@ func _Custodia_LogoutAllDevices_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Custodia_CreateSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).CreateSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_CreateSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).CreateSecret(ctx, req.(*CreateSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Custodia_GetSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).GetSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_GetSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).GetSecret(ctx, req.(*GetSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Custodia_ServiceDesc is the grpc.ServiceDesc for Custodia service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +338,14 @@ var Custodia_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LogoutAllDevices",
 			Handler:    _Custodia_LogoutAllDevices_Handler,
+		},
+		{
+			MethodName: "CreateSecret",
+			Handler:    _Custodia_CreateSecret_Handler,
+		},
+		{
+			MethodName: "GetSecret",
+			Handler:    _Custodia_GetSecret_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

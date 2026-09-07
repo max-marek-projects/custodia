@@ -5,12 +5,19 @@ package custodia;
 option go_package = "github.com/max-marek-projects/custodia/pkg/proto;proto";
 
 service Custodia {
+  // ========== AUTH ==========
   rpc RegisterUser (LoginRequest) returns (LoginResponse);
   rpc LoginUser (LoginRequest) returns (LoginResponse);
   rpc Refresh (RefreshRequest) returns (RefreshResponse);
   rpc LogoutDevice (LogoutDeviceRequest) returns (LogoutDeviceResponse);
   rpc LogoutAllDevices (LogoutAllDevicesRequest) returns (LogoutAllDevicesResponse);
+  // ========== SECRETS ==========
+  rpc CreateSecret (CreateSecretRequest) returns (CreateSecretResponse);
+  rpc GetSecret (GetSecretRequest) returns (GetSecretResponse);
 }
+
+
+// ========== AUTH ==========
 
 message LoginRequest {
 	string login = 1;
@@ -43,3 +50,36 @@ message LogoutDeviceResponse {}
 message LogoutAllDevicesRequest {}
 
 message LogoutAllDevicesResponse {}
+
+// ========== SECRETS ==========
+
+enum DataType {
+  DATA_TYPE_CREDENTIALS = 0;
+  DATA_TYPE_TEXT = 1;
+  DATA_TYPE_BINARY = 2;
+  DATA_TYPE_CARD = 3;
+}
+
+
+message CreateSecretRequest {
+  string name = 1;
+	DataType type = 2;
+	bytes data = 3;
+  map<string, string> metadata = 4;
+  bytes salt = 5;
+  bytes iv = 6;
+}
+
+message CreateSecretResponse {}
+
+message GetSecretRequest {
+  string name = 1;
+	DataType type = 2;
+}
+
+message GetSecretResponse {
+  bytes data = 1;
+  bytes salt = 2;
+  bytes iv = 3;
+  map<string, string> metadata = 4;
+}

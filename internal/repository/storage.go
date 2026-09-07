@@ -18,4 +18,8 @@ type Storage interface {
 	CheckRefreshToken(ctx context.Context, userID int64, tokenHash []byte, deviceName string) error
 	RevokeToken(ctx context.Context, userID int64, deviceName string) error
 	RevokeAllTokens(ctx context.Context, userID int64) error
+
+	// Secrets management
+	CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error
+	GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error)
 }

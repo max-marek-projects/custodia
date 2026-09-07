@@ -1,17 +1,14 @@
-// Package auth provides JWT-based authentication using HTTP cookies.
+// Package auth provides JWT-based authentication utilities.
 package auth
 
 import (
-	"errors"
+	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/max-marek-projects/custodia/internal/logger"
 )
-
-const cookieName = "token"
 
 // Claims represents the JWT claims containing a user ID.
 type Claims struct {
@@ -19,8 +16,17 @@ type Claims struct {
 	UserID int64 // Unique user identifier.
 }
 
+// GenerateToken creates a new JWT string for the given user ID.
+//
+// Parameters:
+//   - userID: The unique identifier of the user to embed in the token.
+//   - secretKey: The secret key used for HMAC-SHA256 signing.
+//   - lifespan: The duration after which the token expires.
+//
+// Returns:
+//   - string: The signed JWT token string.
+//   - error: Non-nil if token signing fails (e.g., invalid key).
 func GenerateToken(userID int64, secretKey string, lifespan time.Duration) (string, error) {
-	logger.Log.Info("Signing token with key", slog.String("key", secretKey))
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(lifespan)),
@@ -30,51 +36,38 @@ func GenerateToken(userID int64, secretKey string, lifespan time.Duration) (stri
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create signed string: %w", err)
 	}
 	return tokenString, nil
 }
 
-// SetUserCookie creates a signed JWT for the given user ID and sets it as an HTTP cookie.
-// Parameters:
-//   - w: ResponseWriter to write the cookie.
-//   - userID: ID to embed in the token.
-//   - secretKey: key used for signing.
-//
-// Returns an error if token signing fails.
-func SetUserCookie(w http.ResponseWriter, userID int64, secretKey string, lifespan time.Duration) error {
-	tokenString, err := GenerateToken(userID, secretKey, lifespan)
-	if err != nil {
-		return err
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookieName,
-		Value:    tokenString,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	})
-	return nil
-}
-
 // GetUserIDFromToken parses and validates a JWT token string.
-// It returns the user ID from the claims or an error if the token is invalid.
+//
+// Parameters:
+//   - token: The JWT token string to validate.
+//   - secretKey: The secret key used for signature verification.
+//
+// Returns:
+//   - int64: The user ID extracted from the token.
+//   - error: Non-nil if the token is invalid, expired, malformed,
+//     signed with a different method, or contains an empty user ID.
 func GetUserIDFromToken(token string, secretKey string) (int64, error) {
 	claims := &Claims{}
-	tokenData, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
+	tokenData, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodHS256 {
-			return nil, errors.New("unexpected signing method")
+			return nil, ErrUnexpectedSigningMethod
 		}
 		return []byte(secretKey), nil
 	})
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to parse token: %w", err)
 	}
 	if !tokenData.Valid {
-		return 0, errors.New("invalid token")
+		return 0, ErrInvalidToken
 	}
 	if claims.UserID == 0 {
-		return 0, errors.New("userID is empty")
+		return 0, ErrEmptyUserID
 	}
+	logger.Log.Debug("Extracted user id from token", slog.Int64("user_id", claims.UserID))
 	return claims.UserID, nil
 }

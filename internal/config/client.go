@@ -8,19 +8,21 @@ import (
 	"time"
 )
 
-// clientConf contains whole client configuration
-type clientConf struct {
+// ClientConf contains whole client configuration
+type ClientConf struct {
 	ConfigFolder   string
 	ConfigFilename string
 	ServerAddr     string        `json:"server_addr"`
 	TokenFilename  string        `json:"tokens_filename"`
 	RequestTimeout time.Duration `json:"requests_timeout"`
+	SessionTTL     time.Duration `json:"session_ttl"`
 	LoggerLevel    string        `json:"logger_level"`
+	SecretsTTL     time.Duration `json:"secrets_ttl"`
 }
 
 // NewClientConf returns all client configuration including configuration from file
-func NewClientConf() (*clientConf, error) {
-	configuration := &clientConf{
+func NewClientConf() (*ClientConf, error) {
+	configuration := &ClientConf{
 		// constants
 		ConfigFolder:   "custodia",
 		ConfigFilename: "config.json",
@@ -28,7 +30,9 @@ func NewClientConf() (*clientConf, error) {
 		ServerAddr:     "localhost:3200",
 		TokenFilename:  "tokens.json",
 		RequestTimeout: 10 * time.Second,
+		SessionTTL:     15 * time.Minute,
 		LoggerLevel:    "INFO",
+		SecretsTTL:     30 * time.Second,
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {

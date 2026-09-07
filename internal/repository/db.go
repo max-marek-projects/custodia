@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -97,7 +98,7 @@ func (dbs *dbStorage) runMigrations() error {
 	return nil
 }
 
-// ========== AUTH ===========
+// ========== USERS MANAGEMENT ===========
 
 // RegisterUser inserts a new user into the database.
 // Parameters:
@@ -140,6 +141,8 @@ func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, []
 	}
 	return userID, hashedPassword, nil
 }
+
+// ========== TOKENS MANAGEMENT ===========
 
 // SaveRefreshToken saves refresh token to storage
 func (dbs *dbStorage) SaveRefreshToken(ctx context.Context, userID int64, tokenHash []byte, deviceName string, ttl time.Duration) error {
@@ -196,4 +199,44 @@ func (dbs *dbStorage) RevokeAllTokens(ctx context.Context, userID int64) error {
         WHERE user_id = $1 AND revoked_at IS NULL
     `, userID)
 	return err
+}
+
+// ========== SECRETS ==========
+
+func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error {
+	query := `
+        INSERT INTO secrets (user_id, type, name, data, salt, iv, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `
+	_, err := dbs.storage.ExecContext(ctx, query,
+		userID, dataType, name, data, salt, iv, metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create secret: %w", err)
+	}
+	return nil
+}
+
+func (dbs *dbStorage) GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error) {
+	var rawMetadata []byte
+	query := `
+        SELECT data, salt, iv, metadata FROM secrets 
+		WHERE user_id = $1 AND type = $2 AND name = $3
+		ORDER BY version DESC
+        LIMIT 1
+    `
+	err = dbs.storage.QueryRowContext(ctx, query,
+		userID, dataType, name,
+	).Scan(&data, &salt, &iv, &rawMetadata)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to get secret: %w", err)
+	}
+	metadata = make(map[string]string)
+	if len(rawMetadata) > 0 {
+		err = json.Unmarshal(rawMetadata, &metadata)
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("failed to parse metadata: %w", err)
+		}
+	}
+	return data, salt, iv, metadata, nil
 }

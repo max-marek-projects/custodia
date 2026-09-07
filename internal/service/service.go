@@ -14,11 +14,15 @@ import (
 
 // Service defines the business logic interface for the loyalty system.
 type Service interface {
+	// users management
 	RegisterUser(ctx context.Context, userData *models.LoginRequest) (*models.LoginResponse, error)
 	LoginUser(ctx context.Context, userData *models.LoginRequest) (*models.LoginResponse, error)
 	RefreshAccess(ctx context.Context, userID int64, refreshToken []byte, deviceName string) (string, error)
 	Logout(ctx context.Context, userID int64, deviceName string) error
 	LogoutAllDevices(ctx context.Context, userID int64) error
+	// secrets management
+	CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error
+	GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error)
 }
 
 // NewService creates a service instance with the given storage and accrual system address.
@@ -139,4 +143,22 @@ func (service *service) LogoutAllDevices(ctx context.Context, userID int64) erro
 		return fmt.Errorf("failed to revoke all tokens: %v", err)
 	}
 	return nil
+}
+
+// ========== SECRETS ==========
+
+func (service *service) CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error {
+	err := service.storage.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
+	if err != nil {
+		return fmt.Errorf("failed to create secret: %w", err)
+	}
+	return nil
+}
+
+func (service *service) GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error) {
+	data, salt, iv, metadata, err = service.storage.GetSecret(ctx, userID, dataType, name)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to get secret from storage: %w", err)
+	}
+	return data, salt, iv, metadata, nil
 }

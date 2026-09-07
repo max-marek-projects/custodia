@@ -188,3 +188,72 @@ func (h *GRPCHandler) LogoutAllDevices(
 	}
 	return &proto.LogoutAllDevicesResponse{}, nil
 }
+
+// ========== SECRETS ==========
+
+func (h *GRPCHandler) CreateSecret(
+	ctx context.Context,
+	req *proto.CreateSecretRequest,
+) (*proto.CreateSecretResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	dataType, found := models.ProtoDataTypeToString[req.GetType()]
+	if !found {
+		logger.Log.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.CreateSecret(ctx, userID, dataType, req.GetName(), req.GetData(), req.GetSalt(), req.GetIv(), req.GetMetadata())
+	if err != nil {
+		logger.Log.Error("Failed to create secret", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	return &proto.CreateSecretResponse{}, nil
+}
+
+func (h *GRPCHandler) GetSecret(
+	ctx context.Context,
+	req *proto.GetSecretRequest,
+) (*proto.GetSecretResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	dataType, found := models.ProtoDataTypeToString[req.GetType()]
+	if !found {
+		logger.Log.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	data, salt, iv, metadata, err := h.service.GetSecret(ctx, userID, dataType, req.GetName())
+	if err != nil {
+		logger.Log.Error("Failed to create secret", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	response := &proto.GetSecretResponse{}
+	response.SetData(data)
+	response.SetSalt(salt)
+	response.SetIv(iv)
+	response.SetMetadata(metadata)
+	return response, nil
+}
