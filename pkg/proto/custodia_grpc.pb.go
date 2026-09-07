@@ -19,13 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Custodia_RegisterUser_FullMethodName     = "/custodia.Custodia/RegisterUser"
-	Custodia_LoginUser_FullMethodName        = "/custodia.Custodia/LoginUser"
-	Custodia_Refresh_FullMethodName          = "/custodia.Custodia/Refresh"
-	Custodia_LogoutDevice_FullMethodName     = "/custodia.Custodia/LogoutDevice"
-	Custodia_LogoutAllDevices_FullMethodName = "/custodia.Custodia/LogoutAllDevices"
-	Custodia_CreateSecret_FullMethodName     = "/custodia.Custodia/CreateSecret"
-	Custodia_GetSecret_FullMethodName        = "/custodia.Custodia/GetSecret"
+	Custodia_RegisterUser_FullMethodName         = "/custodia.Custodia/RegisterUser"
+	Custodia_LoginUser_FullMethodName            = "/custodia.Custodia/LoginUser"
+	Custodia_Refresh_FullMethodName              = "/custodia.Custodia/Refresh"
+	Custodia_LogoutDevice_FullMethodName         = "/custodia.Custodia/LogoutDevice"
+	Custodia_LogoutAllDevices_FullMethodName     = "/custodia.Custodia/LogoutAllDevices"
+	Custodia_CreateSecret_FullMethodName         = "/custodia.Custodia/CreateSecret"
+	Custodia_GetSecret_FullMethodName            = "/custodia.Custodia/GetSecret"
+	Custodia_RollbackSecret_FullMethodName       = "/custodia.Custodia/RollbackSecret"
+	Custodia_DeleteSecret_FullMethodName         = "/custodia.Custodia/DeleteSecret"
+	Custodia_UpdateSecretData_FullMethodName     = "/custodia.Custodia/UpdateSecretData"
+	Custodia_UpdateSecretMetadata_FullMethodName = "/custodia.Custodia/UpdateSecretMetadata"
 )
 
 // CustodiaClient is the client API for Custodia service.
@@ -41,6 +45,10 @@ type CustodiaClient interface {
 	// ========== SECRETS ==========
 	CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*CreateSecretResponse, error)
 	GetSecret(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*GetSecretResponse, error)
+	RollbackSecret(ctx context.Context, in *RollbackSecretRequest, opts ...grpc.CallOption) (*RollbackSecretResponse, error)
+	DeleteSecret(ctx context.Context, in *DeleteSecretRequest, opts ...grpc.CallOption) (*DeleteSecretResponse, error)
+	UpdateSecretData(ctx context.Context, in *UpdateSecretDataRequest, opts ...grpc.CallOption) (*UpdateSecretDataResponse, error)
+	UpdateSecretMetadata(ctx context.Context, in *UpdateSecretMetadataRequest, opts ...grpc.CallOption) (*UpdateSecretMetadataResponse, error)
 }
 
 type custodiaClient struct {
@@ -121,6 +129,46 @@ func (c *custodiaClient) GetSecret(ctx context.Context, in *GetSecretRequest, op
 	return out, nil
 }
 
+func (c *custodiaClient) RollbackSecret(ctx context.Context, in *RollbackSecretRequest, opts ...grpc.CallOption) (*RollbackSecretResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RollbackSecretResponse)
+	err := c.cc.Invoke(ctx, Custodia_RollbackSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *custodiaClient) DeleteSecret(ctx context.Context, in *DeleteSecretRequest, opts ...grpc.CallOption) (*DeleteSecretResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteSecretResponse)
+	err := c.cc.Invoke(ctx, Custodia_DeleteSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *custodiaClient) UpdateSecretData(ctx context.Context, in *UpdateSecretDataRequest, opts ...grpc.CallOption) (*UpdateSecretDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSecretDataResponse)
+	err := c.cc.Invoke(ctx, Custodia_UpdateSecretData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *custodiaClient) UpdateSecretMetadata(ctx context.Context, in *UpdateSecretMetadataRequest, opts ...grpc.CallOption) (*UpdateSecretMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSecretMetadataResponse)
+	err := c.cc.Invoke(ctx, Custodia_UpdateSecretMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CustodiaServer is the server API for Custodia service.
 // All implementations must embed UnimplementedCustodiaServer
 // for forward compatibility.
@@ -134,6 +182,10 @@ type CustodiaServer interface {
 	// ========== SECRETS ==========
 	CreateSecret(context.Context, *CreateSecretRequest) (*CreateSecretResponse, error)
 	GetSecret(context.Context, *GetSecretRequest) (*GetSecretResponse, error)
+	RollbackSecret(context.Context, *RollbackSecretRequest) (*RollbackSecretResponse, error)
+	DeleteSecret(context.Context, *DeleteSecretRequest) (*DeleteSecretResponse, error)
+	UpdateSecretData(context.Context, *UpdateSecretDataRequest) (*UpdateSecretDataResponse, error)
+	UpdateSecretMetadata(context.Context, *UpdateSecretMetadataRequest) (*UpdateSecretMetadataResponse, error)
 	mustEmbedUnimplementedCustodiaServer()
 }
 
@@ -164,6 +216,18 @@ func (UnimplementedCustodiaServer) CreateSecret(context.Context, *CreateSecretRe
 }
 func (UnimplementedCustodiaServer) GetSecret(context.Context, *GetSecretRequest) (*GetSecretResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSecret not implemented")
+}
+func (UnimplementedCustodiaServer) RollbackSecret(context.Context, *RollbackSecretRequest) (*RollbackSecretResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RollbackSecret not implemented")
+}
+func (UnimplementedCustodiaServer) DeleteSecret(context.Context, *DeleteSecretRequest) (*DeleteSecretResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteSecret not implemented")
+}
+func (UnimplementedCustodiaServer) UpdateSecretData(context.Context, *UpdateSecretDataRequest) (*UpdateSecretDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSecretData not implemented")
+}
+func (UnimplementedCustodiaServer) UpdateSecretMetadata(context.Context, *UpdateSecretMetadataRequest) (*UpdateSecretMetadataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSecretMetadata not implemented")
 }
 func (UnimplementedCustodiaServer) mustEmbedUnimplementedCustodiaServer() {}
 func (UnimplementedCustodiaServer) testEmbeddedByValue()                  {}
@@ -312,6 +376,78 @@ func _Custodia_GetSecret_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Custodia_RollbackSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RollbackSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).RollbackSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_RollbackSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).RollbackSecret(ctx, req.(*RollbackSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Custodia_DeleteSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).DeleteSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_DeleteSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).DeleteSecret(ctx, req.(*DeleteSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Custodia_UpdateSecretData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSecretDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).UpdateSecretData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_UpdateSecretData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).UpdateSecretData(ctx, req.(*UpdateSecretDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Custodia_UpdateSecretMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSecretMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).UpdateSecretMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_UpdateSecretMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).UpdateSecretMetadata(ctx, req.(*UpdateSecretMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Custodia_ServiceDesc is the grpc.ServiceDesc for Custodia service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -346,6 +482,22 @@ var Custodia_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSecret",
 			Handler:    _Custodia_GetSecret_Handler,
+		},
+		{
+			MethodName: "RollbackSecret",
+			Handler:    _Custodia_RollbackSecret_Handler,
+		},
+		{
+			MethodName: "DeleteSecret",
+			Handler:    _Custodia_DeleteSecret_Handler,
+		},
+		{
+			MethodName: "UpdateSecretData",
+			Handler:    _Custodia_UpdateSecretData_Handler,
+		},
+		{
+			MethodName: "UpdateSecretMetadata",
+			Handler:    _Custodia_UpdateSecretMetadata_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

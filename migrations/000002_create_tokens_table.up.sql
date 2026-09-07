@@ -1,4 +1,4 @@
-CREATE TABLE tokens (
+CREATE TABLE IF NOT EXISTS tokens (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token_hash BYTEA NOT NULL UNIQUE,
@@ -8,6 +8,6 @@ CREATE TABLE tokens (
     device_name TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_unique_active_token_per_device ON tokens (user_id, device_name)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_token_per_device ON tokens (user_id, device_name)
 WHERE
     revoked_at IS NULL;

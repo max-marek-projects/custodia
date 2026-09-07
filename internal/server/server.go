@@ -57,6 +57,7 @@ func NewServer(
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(
 			interceptors.GRPCAuthInterceptor(cookieSecret),
+			interceptors.GRPCLoggerInterceptor(),
 		),
 	)
 	server := grpc.NewServer(opts...)

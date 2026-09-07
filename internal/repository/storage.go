@@ -21,5 +21,16 @@ type Storage interface {
 
 	// Secrets management
 	CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error
-	GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error)
+	GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string, version uint64) (data, salt, iv []byte, metadata map[string]string, err error)
+	RollbackSecret(
+		ctx context.Context,
+		userID int64,
+		name string,
+	) error
+	DeleteSecret(
+		ctx context.Context,
+		userID int64,
+		name string,
+	) error
+	UpdateSecret(ctx context.Context, userID int64, name string, data, salt, iv []byte, metadata map[string]string) error
 }

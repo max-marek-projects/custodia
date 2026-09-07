@@ -751,11 +751,12 @@ func (b0 CreateSecretResponse_builder) Build() *CreateSecretResponse {
 }
 
 type GetSecretRequest struct {
-	state           protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Name string                 `protobuf:"bytes,1,opt,name=name,proto3"`
-	xxx_hidden_Type DataType               `protobuf:"varint,2,opt,name=type,proto3,enum=custodia.DataType"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name    string                 `protobuf:"bytes,1,opt,name=name,proto3"`
+	xxx_hidden_Type    DataType               `protobuf:"varint,2,opt,name=type,proto3,enum=custodia.DataType"`
+	xxx_hidden_Version uint64                 `protobuf:"varint,3,opt,name=version,proto3"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetSecretRequest) Reset() {
@@ -797,6 +798,13 @@ func (x *GetSecretRequest) GetType() DataType {
 	return DataType_DATA_TYPE_CREDENTIALS
 }
 
+func (x *GetSecretRequest) GetVersion() uint64 {
+	if x != nil {
+		return x.xxx_hidden_Version
+	}
+	return 0
+}
+
 func (x *GetSecretRequest) SetName(v string) {
 	x.xxx_hidden_Name = v
 }
@@ -805,11 +813,16 @@ func (x *GetSecretRequest) SetType(v DataType) {
 	x.xxx_hidden_Type = v
 }
 
+func (x *GetSecretRequest) SetVersion(v uint64) {
+	x.xxx_hidden_Version = v
+}
+
 type GetSecretRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Name string
-	Type DataType
+	Name    string
+	Type    DataType
+	Version uint64
 }
 
 func (b0 GetSecretRequest_builder) Build() *GetSecretRequest {
@@ -818,6 +831,7 @@ func (b0 GetSecretRequest_builder) Build() *GetSecretRequest {
 	_, _ = b, x
 	x.xxx_hidden_Name = b.Name
 	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Version = b.Version
 	return m0
 }
 
@@ -929,6 +943,471 @@ func (b0 GetSecretResponse_builder) Build() *GetSecretResponse {
 	return m0
 }
 
+type RollbackSecretRequest struct {
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name string                 `protobuf:"bytes,1,opt,name=name,proto3"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RollbackSecretRequest) Reset() {
+	*x = RollbackSecretRequest{}
+	mi := &file_api_custodia_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackSecretRequest) ProtoMessage() {}
+
+func (x *RollbackSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *RollbackSecretRequest) GetName() string {
+	if x != nil {
+		return x.xxx_hidden_Name
+	}
+	return ""
+}
+
+func (x *RollbackSecretRequest) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+type RollbackSecretRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Name string
+}
+
+func (b0 RollbackSecretRequest_builder) Build() *RollbackSecretRequest {
+	m0 := &RollbackSecretRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Name = b.Name
+	return m0
+}
+
+type RollbackSecretResponse struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RollbackSecretResponse) Reset() {
+	*x = RollbackSecretResponse{}
+	mi := &file_api_custodia_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackSecretResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackSecretResponse) ProtoMessage() {}
+
+func (x *RollbackSecretResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type RollbackSecretResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 RollbackSecretResponse_builder) Build() *RollbackSecretResponse {
+	m0 := &RollbackSecretResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type DeleteSecretRequest struct {
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name string                 `protobuf:"bytes,1,opt,name=name,proto3"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DeleteSecretRequest) Reset() {
+	*x = DeleteSecretRequest{}
+	mi := &file_api_custodia_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSecretRequest) ProtoMessage() {}
+
+func (x *DeleteSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *DeleteSecretRequest) GetName() string {
+	if x != nil {
+		return x.xxx_hidden_Name
+	}
+	return ""
+}
+
+func (x *DeleteSecretRequest) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+type DeleteSecretRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Name string
+}
+
+func (b0 DeleteSecretRequest_builder) Build() *DeleteSecretRequest {
+	m0 := &DeleteSecretRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Name = b.Name
+	return m0
+}
+
+type DeleteSecretResponse struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSecretResponse) Reset() {
+	*x = DeleteSecretResponse{}
+	mi := &file_api_custodia_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSecretResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSecretResponse) ProtoMessage() {}
+
+func (x *DeleteSecretResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type DeleteSecretResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 DeleteSecretResponse_builder) Build() *DeleteSecretResponse {
+	m0 := &DeleteSecretResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type UpdateSecretDataRequest struct {
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name string                 `protobuf:"bytes,1,opt,name=name,proto3"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,2,opt,name=data,proto3"`
+	xxx_hidden_Salt []byte                 `protobuf:"bytes,3,opt,name=salt,proto3"`
+	xxx_hidden_Iv   []byte                 `protobuf:"bytes,4,opt,name=iv,proto3"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UpdateSecretDataRequest) Reset() {
+	*x = UpdateSecretDataRequest{}
+	mi := &file_api_custodia_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSecretDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSecretDataRequest) ProtoMessage() {}
+
+func (x *UpdateSecretDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *UpdateSecretDataRequest) GetName() string {
+	if x != nil {
+		return x.xxx_hidden_Name
+	}
+	return ""
+}
+
+func (x *UpdateSecretDataRequest) GetData() []byte {
+	if x != nil {
+		return x.xxx_hidden_Data
+	}
+	return nil
+}
+
+func (x *UpdateSecretDataRequest) GetSalt() []byte {
+	if x != nil {
+		return x.xxx_hidden_Salt
+	}
+	return nil
+}
+
+func (x *UpdateSecretDataRequest) GetIv() []byte {
+	if x != nil {
+		return x.xxx_hidden_Iv
+	}
+	return nil
+}
+
+func (x *UpdateSecretDataRequest) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+func (x *UpdateSecretDataRequest) SetData(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Data = v
+}
+
+func (x *UpdateSecretDataRequest) SetSalt(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Salt = v
+}
+
+func (x *UpdateSecretDataRequest) SetIv(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Iv = v
+}
+
+type UpdateSecretDataRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Name string
+	Data []byte
+	Salt []byte
+	Iv   []byte
+}
+
+func (b0 UpdateSecretDataRequest_builder) Build() *UpdateSecretDataRequest {
+	m0 := &UpdateSecretDataRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Data = b.Data
+	x.xxx_hidden_Salt = b.Salt
+	x.xxx_hidden_Iv = b.Iv
+	return m0
+}
+
+type UpdateSecretDataResponse struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateSecretDataResponse) Reset() {
+	*x = UpdateSecretDataResponse{}
+	mi := &file_api_custodia_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSecretDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSecretDataResponse) ProtoMessage() {}
+
+func (x *UpdateSecretDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type UpdateSecretDataResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 UpdateSecretDataResponse_builder) Build() *UpdateSecretDataResponse {
+	m0 := &UpdateSecretDataResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type UpdateSecretMetadataRequest struct {
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name     string                 `protobuf:"bytes,1,opt,name=name,proto3"`
+	xxx_hidden_Metadata map[string]string      `protobuf:"bytes,2,rep,name=metadata,proto3" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *UpdateSecretMetadataRequest) Reset() {
+	*x = UpdateSecretMetadataRequest{}
+	mi := &file_api_custodia_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSecretMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSecretMetadataRequest) ProtoMessage() {}
+
+func (x *UpdateSecretMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *UpdateSecretMetadataRequest) GetName() string {
+	if x != nil {
+		return x.xxx_hidden_Name
+	}
+	return ""
+}
+
+func (x *UpdateSecretMetadataRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.xxx_hidden_Metadata
+	}
+	return nil
+}
+
+func (x *UpdateSecretMetadataRequest) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+func (x *UpdateSecretMetadataRequest) SetMetadata(v map[string]string) {
+	x.xxx_hidden_Metadata = v
+}
+
+type UpdateSecretMetadataRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Name     string
+	Metadata map[string]string
+}
+
+func (b0 UpdateSecretMetadataRequest_builder) Build() *UpdateSecretMetadataRequest {
+	m0 := &UpdateSecretMetadataRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Metadata = b.Metadata
+	return m0
+}
+
+type UpdateSecretMetadataResponse struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateSecretMetadataResponse) Reset() {
+	*x = UpdateSecretMetadataResponse{}
+	mi := &file_api_custodia_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSecretMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSecretMetadataResponse) ProtoMessage() {}
+
+func (x *UpdateSecretMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_custodia_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type UpdateSecretMetadataResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 UpdateSecretMetadataResponse_builder) Build() *UpdateSecretMetadataResponse {
+	m0 := &UpdateSecretMetadataResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
 var File_api_custodia_proto protoreflect.FileDescriptor
 
 const file_api_custodia_proto_rawDesc = "" +
@@ -966,10 +1445,11 @@ const file_api_custodia_proto_rawDesc = "" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x16\n" +
-	"\x14CreateSecretResponse\"N\n" +
+	"\x14CreateSecretResponse\"h\n" +
 	"\x10GetSecretRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x12.custodia.DataTypeR\x04type\"\xcf\x01\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x12.custodia.DataTypeR\x04type\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\"\xcf\x01\n" +
 	"\x11GetSecretResponse\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12\x12\n" +
 	"\x04salt\x18\x02 \x01(\fR\x04salt\x12\x0e\n" +
@@ -977,12 +1457,31 @@ const file_api_custodia_proto_rawDesc = "" +
 	"\bmetadata\x18\x04 \x03(\v2).custodia.GetSecretResponse.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*c\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"+\n" +
+	"\x15RollbackSecretRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x18\n" +
+	"\x16RollbackSecretResponse\")\n" +
+	"\x13DeleteSecretRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x16\n" +
+	"\x14DeleteSecretResponse\"e\n" +
+	"\x17UpdateSecretDataRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
+	"\x04salt\x18\x03 \x01(\fR\x04salt\x12\x0e\n" +
+	"\x02iv\x18\x04 \x01(\fR\x02iv\"\x1a\n" +
+	"\x18UpdateSecretDataResponse\"\xbf\x01\n" +
+	"\x1bUpdateSecretMetadataRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12O\n" +
+	"\bmetadata\x18\x02 \x03(\v23.custodia.UpdateSecretMetadataRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x1e\n" +
+	"\x1cUpdateSecretMetadataResponse*c\n" +
 	"\bDataType\x12\x19\n" +
 	"\x15DATA_TYPE_CREDENTIALS\x10\x00\x12\x12\n" +
 	"\x0eDATA_TYPE_TEXT\x10\x01\x12\x14\n" +
 	"\x10DATA_TYPE_BINARY\x10\x02\x12\x12\n" +
-	"\x0eDATA_TYPE_CARD\x10\x032\x88\x04\n" +
+	"\x0eDATA_TYPE_CARD\x10\x032\xee\x06\n" +
 	"\bCustodia\x12?\n" +
 	"\fRegisterUser\x12\x16.custodia.LoginRequest\x1a\x17.custodia.LoginResponse\x12<\n" +
 	"\tLoginUser\x12\x16.custodia.LoginRequest\x1a\x17.custodia.LoginResponse\x12>\n" +
@@ -990,51 +1489,73 @@ const file_api_custodia_proto_rawDesc = "" +
 	"\fLogoutDevice\x12\x1d.custodia.LogoutDeviceRequest\x1a\x1e.custodia.LogoutDeviceResponse\x12Y\n" +
 	"\x10LogoutAllDevices\x12!.custodia.LogoutAllDevicesRequest\x1a\".custodia.LogoutAllDevicesResponse\x12M\n" +
 	"\fCreateSecret\x12\x1d.custodia.CreateSecretRequest\x1a\x1e.custodia.CreateSecretResponse\x12D\n" +
-	"\tGetSecret\x12\x1a.custodia.GetSecretRequest\x1a\x1b.custodia.GetSecretResponseB8Z6github.com/max-marek-projects/custodia/pkg/proto;protob\x06proto3"
+	"\tGetSecret\x12\x1a.custodia.GetSecretRequest\x1a\x1b.custodia.GetSecretResponse\x12S\n" +
+	"\x0eRollbackSecret\x12\x1f.custodia.RollbackSecretRequest\x1a .custodia.RollbackSecretResponse\x12M\n" +
+	"\fDeleteSecret\x12\x1d.custodia.DeleteSecretRequest\x1a\x1e.custodia.DeleteSecretResponse\x12Y\n" +
+	"\x10UpdateSecretData\x12!.custodia.UpdateSecretDataRequest\x1a\".custodia.UpdateSecretDataResponse\x12e\n" +
+	"\x14UpdateSecretMetadata\x12%.custodia.UpdateSecretMetadataRequest\x1a&.custodia.UpdateSecretMetadataResponseB8Z6github.com/max-marek-projects/custodia/pkg/proto;protob\x06proto3"
 
 var file_api_custodia_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_custodia_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_api_custodia_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_api_custodia_proto_goTypes = []any{
-	(DataType)(0),                    // 0: custodia.DataType
-	(*LoginRequest)(nil),             // 1: custodia.LoginRequest
-	(*LoginResponse)(nil),            // 2: custodia.LoginResponse
-	(*RefreshRequest)(nil),           // 3: custodia.RefreshRequest
-	(*RefreshResponse)(nil),          // 4: custodia.RefreshResponse
-	(*LogoutDeviceRequest)(nil),      // 5: custodia.LogoutDeviceRequest
-	(*LogoutDeviceResponse)(nil),     // 6: custodia.LogoutDeviceResponse
-	(*LogoutAllDevicesRequest)(nil),  // 7: custodia.LogoutAllDevicesRequest
-	(*LogoutAllDevicesResponse)(nil), // 8: custodia.LogoutAllDevicesResponse
-	(*CreateSecretRequest)(nil),      // 9: custodia.CreateSecretRequest
-	(*CreateSecretResponse)(nil),     // 10: custodia.CreateSecretResponse
-	(*GetSecretRequest)(nil),         // 11: custodia.GetSecretRequest
-	(*GetSecretResponse)(nil),        // 12: custodia.GetSecretResponse
-	nil,                              // 13: custodia.CreateSecretRequest.MetadataEntry
-	nil,                              // 14: custodia.GetSecretResponse.MetadataEntry
+	(DataType)(0),                        // 0: custodia.DataType
+	(*LoginRequest)(nil),                 // 1: custodia.LoginRequest
+	(*LoginResponse)(nil),                // 2: custodia.LoginResponse
+	(*RefreshRequest)(nil),               // 3: custodia.RefreshRequest
+	(*RefreshResponse)(nil),              // 4: custodia.RefreshResponse
+	(*LogoutDeviceRequest)(nil),          // 5: custodia.LogoutDeviceRequest
+	(*LogoutDeviceResponse)(nil),         // 6: custodia.LogoutDeviceResponse
+	(*LogoutAllDevicesRequest)(nil),      // 7: custodia.LogoutAllDevicesRequest
+	(*LogoutAllDevicesResponse)(nil),     // 8: custodia.LogoutAllDevicesResponse
+	(*CreateSecretRequest)(nil),          // 9: custodia.CreateSecretRequest
+	(*CreateSecretResponse)(nil),         // 10: custodia.CreateSecretResponse
+	(*GetSecretRequest)(nil),             // 11: custodia.GetSecretRequest
+	(*GetSecretResponse)(nil),            // 12: custodia.GetSecretResponse
+	(*RollbackSecretRequest)(nil),        // 13: custodia.RollbackSecretRequest
+	(*RollbackSecretResponse)(nil),       // 14: custodia.RollbackSecretResponse
+	(*DeleteSecretRequest)(nil),          // 15: custodia.DeleteSecretRequest
+	(*DeleteSecretResponse)(nil),         // 16: custodia.DeleteSecretResponse
+	(*UpdateSecretDataRequest)(nil),      // 17: custodia.UpdateSecretDataRequest
+	(*UpdateSecretDataResponse)(nil),     // 18: custodia.UpdateSecretDataResponse
+	(*UpdateSecretMetadataRequest)(nil),  // 19: custodia.UpdateSecretMetadataRequest
+	(*UpdateSecretMetadataResponse)(nil), // 20: custodia.UpdateSecretMetadataResponse
+	nil,                                  // 21: custodia.CreateSecretRequest.MetadataEntry
+	nil,                                  // 22: custodia.GetSecretResponse.MetadataEntry
+	nil,                                  // 23: custodia.UpdateSecretMetadataRequest.MetadataEntry
 }
 var file_api_custodia_proto_depIdxs = []int32{
 	0,  // 0: custodia.CreateSecretRequest.type:type_name -> custodia.DataType
-	13, // 1: custodia.CreateSecretRequest.metadata:type_name -> custodia.CreateSecretRequest.MetadataEntry
+	21, // 1: custodia.CreateSecretRequest.metadata:type_name -> custodia.CreateSecretRequest.MetadataEntry
 	0,  // 2: custodia.GetSecretRequest.type:type_name -> custodia.DataType
-	14, // 3: custodia.GetSecretResponse.metadata:type_name -> custodia.GetSecretResponse.MetadataEntry
-	1,  // 4: custodia.Custodia.RegisterUser:input_type -> custodia.LoginRequest
-	1,  // 5: custodia.Custodia.LoginUser:input_type -> custodia.LoginRequest
-	3,  // 6: custodia.Custodia.Refresh:input_type -> custodia.RefreshRequest
-	5,  // 7: custodia.Custodia.LogoutDevice:input_type -> custodia.LogoutDeviceRequest
-	7,  // 8: custodia.Custodia.LogoutAllDevices:input_type -> custodia.LogoutAllDevicesRequest
-	9,  // 9: custodia.Custodia.CreateSecret:input_type -> custodia.CreateSecretRequest
-	11, // 10: custodia.Custodia.GetSecret:input_type -> custodia.GetSecretRequest
-	2,  // 11: custodia.Custodia.RegisterUser:output_type -> custodia.LoginResponse
-	2,  // 12: custodia.Custodia.LoginUser:output_type -> custodia.LoginResponse
-	4,  // 13: custodia.Custodia.Refresh:output_type -> custodia.RefreshResponse
-	6,  // 14: custodia.Custodia.LogoutDevice:output_type -> custodia.LogoutDeviceResponse
-	8,  // 15: custodia.Custodia.LogoutAllDevices:output_type -> custodia.LogoutAllDevicesResponse
-	10, // 16: custodia.Custodia.CreateSecret:output_type -> custodia.CreateSecretResponse
-	12, // 17: custodia.Custodia.GetSecret:output_type -> custodia.GetSecretResponse
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	22, // 3: custodia.GetSecretResponse.metadata:type_name -> custodia.GetSecretResponse.MetadataEntry
+	23, // 4: custodia.UpdateSecretMetadataRequest.metadata:type_name -> custodia.UpdateSecretMetadataRequest.MetadataEntry
+	1,  // 5: custodia.Custodia.RegisterUser:input_type -> custodia.LoginRequest
+	1,  // 6: custodia.Custodia.LoginUser:input_type -> custodia.LoginRequest
+	3,  // 7: custodia.Custodia.Refresh:input_type -> custodia.RefreshRequest
+	5,  // 8: custodia.Custodia.LogoutDevice:input_type -> custodia.LogoutDeviceRequest
+	7,  // 9: custodia.Custodia.LogoutAllDevices:input_type -> custodia.LogoutAllDevicesRequest
+	9,  // 10: custodia.Custodia.CreateSecret:input_type -> custodia.CreateSecretRequest
+	11, // 11: custodia.Custodia.GetSecret:input_type -> custodia.GetSecretRequest
+	13, // 12: custodia.Custodia.RollbackSecret:input_type -> custodia.RollbackSecretRequest
+	15, // 13: custodia.Custodia.DeleteSecret:input_type -> custodia.DeleteSecretRequest
+	17, // 14: custodia.Custodia.UpdateSecretData:input_type -> custodia.UpdateSecretDataRequest
+	19, // 15: custodia.Custodia.UpdateSecretMetadata:input_type -> custodia.UpdateSecretMetadataRequest
+	2,  // 16: custodia.Custodia.RegisterUser:output_type -> custodia.LoginResponse
+	2,  // 17: custodia.Custodia.LoginUser:output_type -> custodia.LoginResponse
+	4,  // 18: custodia.Custodia.Refresh:output_type -> custodia.RefreshResponse
+	6,  // 19: custodia.Custodia.LogoutDevice:output_type -> custodia.LogoutDeviceResponse
+	8,  // 20: custodia.Custodia.LogoutAllDevices:output_type -> custodia.LogoutAllDevicesResponse
+	10, // 21: custodia.Custodia.CreateSecret:output_type -> custodia.CreateSecretResponse
+	12, // 22: custodia.Custodia.GetSecret:output_type -> custodia.GetSecretResponse
+	14, // 23: custodia.Custodia.RollbackSecret:output_type -> custodia.RollbackSecretResponse
+	16, // 24: custodia.Custodia.DeleteSecret:output_type -> custodia.DeleteSecretResponse
+	18, // 25: custodia.Custodia.UpdateSecretData:output_type -> custodia.UpdateSecretDataResponse
+	20, // 26: custodia.Custodia.UpdateSecretMetadata:output_type -> custodia.UpdateSecretMetadataResponse
+	16, // [16:27] is the sub-list for method output_type
+	5,  // [5:16] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_api_custodia_proto_init() }
@@ -1048,7 +1569,7 @@ func file_api_custodia_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_custodia_proto_rawDesc), len(file_api_custodia_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

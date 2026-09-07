@@ -18,6 +18,10 @@ var getCredentialsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get name value from flag: %w", err)
 		}
+		version, err := cmd.Flags().GetUint64("version")
+		if err != nil {
+			return fmt.Errorf("failed to get version value from flag: %w", err)
+		}
 		if name == "" {
 			fmt.Print("Please type cred name: ")
 			fmt.Scanln(&name)
@@ -30,7 +34,7 @@ var getCredentialsCmd = &cobra.Command{
 		defer cli.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
 		defer cancel()
-		credentials, metadata, err := cli.GetCredentials(ctx, name)
+		credentials, metadata, err := cli.GetCredentials(ctx, name, version)
 		if err != nil {
 			return fmt.Errorf("failed to login: %w", err)
 		}
@@ -54,5 +58,6 @@ var getCredentialsCmd = &cobra.Command{
 
 func init() {
 	getCredentialsCmd.Flags().StringP("name", "n", "", "credentials name")
+	getCredentialsCmd.Flags().Uint64P("version", "v", 0, "cred version")
 	getCmd.AddCommand(getCredentialsCmd)
 }

@@ -14,6 +14,10 @@ service Custodia {
   // ========== SECRETS ==========
   rpc CreateSecret (CreateSecretRequest) returns (CreateSecretResponse);
   rpc GetSecret (GetSecretRequest) returns (GetSecretResponse);
+  rpc RollbackSecret (RollbackSecretRequest) returns (RollbackSecretResponse);
+  rpc DeleteSecret (DeleteSecretRequest) returns (DeleteSecretResponse);
+  rpc UpdateSecretData (UpdateSecretDataRequest) returns (UpdateSecretDataResponse);
+  rpc UpdateSecretMetadata (UpdateSecretMetadataRequest) returns (UpdateSecretMetadataResponse);
 }
 
 
@@ -75,6 +79,7 @@ message CreateSecretResponse {}
 message GetSecretRequest {
   string name = 1;
 	DataType type = 2;
+  uint64 version = 3;
 }
 
 message GetSecretResponse {
@@ -83,3 +88,35 @@ message GetSecretResponse {
   bytes iv = 3;
   map<string, string> metadata = 4;
 }
+
+message RollbackSecretRequest {
+  string name = 1;
+}
+
+message RollbackSecretResponse {
+
+}
+
+message DeleteSecretRequest {
+  string name = 1;
+}
+
+message DeleteSecretResponse {
+
+}
+
+message UpdateSecretDataRequest {
+  string name = 1;
+	bytes data = 2;
+  bytes salt = 3;
+  bytes iv = 4;
+}
+
+message UpdateSecretDataResponse {}
+
+message UpdateSecretMetadataRequest {
+  string name = 1;
+  map<string, string> metadata = 2;
+}
+
+message UpdateSecretMetadataResponse {}

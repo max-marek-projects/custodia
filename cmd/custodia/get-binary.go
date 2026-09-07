@@ -18,6 +18,10 @@ var getSecretBinaryCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get name value from flag: %w", err)
 		}
+		version, err := cmd.Flags().GetUint64("version")
+		if err != nil {
+			return fmt.Errorf("failed to get version value from flag: %w", err)
+		}
 		if name == "" {
 			fmt.Print("Please type cred name: ")
 			fmt.Scanln(&name)
@@ -30,7 +34,7 @@ var getSecretBinaryCmd = &cobra.Command{
 		defer cli.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
 		defer cancel()
-		secretData, metadata, err := cli.GetSecretBinary(ctx, name)
+		secretData, metadata, err := cli.GetSecretBinary(ctx, name, version)
 		if err != nil {
 			return fmt.Errorf("failed to login: %w", err)
 		}
@@ -50,5 +54,6 @@ var getSecretBinaryCmd = &cobra.Command{
 
 func init() {
 	getSecretBinaryCmd.Flags().StringP("name", "n", "", "secret text data name")
+	getSecretBinaryCmd.Flags().Uint64P("version", "v", 0, "cred version")
 	getCmd.AddCommand(getSecretBinaryCmd)
 }

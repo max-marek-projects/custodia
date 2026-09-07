@@ -242,8 +242,14 @@ func (h *GRPCHandler) GetSecret(
 			"Internal error",
 		)
 	}
-	data, salt, iv, metadata, err := h.service.GetSecret(ctx, userID, dataType, req.GetName())
+	data, salt, iv, metadata, err := h.service.GetSecret(ctx, userID, dataType, req.GetName(), req.GetVersion())
 	if err != nil {
+		if errors.Is(err, service.ErrSecretNotFound) {
+			return nil, status.Error(
+				codes.NotFound,
+				"secret not found",
+			)
+		}
 		logger.Log.Error("Failed to create secret", slog.Any("error", err))
 		return nil, status.Error(
 			codes.Internal,
@@ -256,4 +262,128 @@ func (h *GRPCHandler) GetSecret(
 	response.SetIv(iv)
 	response.SetMetadata(metadata)
 	return response, nil
+}
+
+func (h *GRPCHandler) RollbackSecret(
+	ctx context.Context,
+	req *proto.RollbackSecretRequest,
+) (*proto.RollbackSecretResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.RollbackSecret(ctx, userID, req.GetName())
+	if err != nil {
+		if errors.Is(err, service.ErrRollbackNotPossible) {
+			return nil, status.Error(
+				codes.PermissionDenied,
+				"no version to roll back",
+			)
+		}
+		if errors.Is(err, service.ErrSecretNotFound) {
+			return nil, status.Error(
+				codes.NotFound,
+				"secret not found",
+			)
+		}
+		logger.Log.Error("Failed to rollback secret", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	response := &proto.RollbackSecretResponse{}
+	return response, nil
+}
+
+func (h *GRPCHandler) DeleteSecret(
+	ctx context.Context,
+	req *proto.DeleteSecretRequest,
+) (*proto.DeleteSecretResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.DeleteSecret(ctx, userID, req.GetName())
+	if err != nil {
+		if errors.Is(err, service.ErrSecretNotFound) {
+			return nil, status.Error(
+				codes.NotFound,
+				"cred not found",
+			)
+		}
+		logger.Log.Error("Failed to delete secret", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	response := &proto.DeleteSecretResponse{}
+	return response, nil
+}
+
+func (h *GRPCHandler) UpdateSecretData(
+	ctx context.Context,
+	req *proto.UpdateSecretDataRequest,
+) (*proto.UpdateSecretDataResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.UpdateSecretData(ctx, userID, req.GetName(), req.GetData(), req.GetSalt(), req.GetIv())
+	if err != nil {
+		if errors.Is(err, service.ErrSecretNotFound) {
+			return nil, status.Error(
+				codes.NotFound,
+				"cred not found",
+			)
+		}
+		logger.Log.Error("Failed to update secret", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	return &proto.UpdateSecretDataResponse{}, nil
+}
+
+func (h *GRPCHandler) UpdateSecretMetadata(
+	ctx context.Context,
+	req *proto.UpdateSecretMetadataRequest,
+) (*proto.UpdateSecretMetadataResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	err := h.service.UpdateSecretMetadata(ctx, userID, req.GetName(), req.GetMetadata())
+	if err != nil {
+		if errors.Is(err, service.ErrSecretNotFound) {
+			return nil, status.Error(
+				codes.NotFound,
+				"cred not found",
+			)
+		}
+		logger.Log.Error("Failed to update secret", slog.Any("error", err))
+		return nil, status.Error(
+			codes.Internal,
+			"Internal error",
+		)
+	}
+	return &proto.UpdateSecretMetadataResponse{}, nil
 }

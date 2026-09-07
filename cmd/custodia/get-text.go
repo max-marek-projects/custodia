@@ -18,6 +18,10 @@ var getSecretTextCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get name value from flag: %w", err)
 		}
+		version, err := cmd.Flags().GetUint64("version")
+		if err != nil {
+			return fmt.Errorf("failed to get version value from flag: %w", err)
+		}
 		if name == "" {
 			fmt.Print("Please type cred name: ")
 			fmt.Scanln(&name)
@@ -30,7 +34,7 @@ var getSecretTextCmd = &cobra.Command{
 		defer cli.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
 		defer cancel()
-		secretText, metadata, err := cli.GetSecretText(ctx, name)
+		secretText, metadata, err := cli.GetSecretText(ctx, name, version)
 		if err != nil {
 			return fmt.Errorf("failed to login: %w", err)
 		}
@@ -50,5 +54,6 @@ var getSecretTextCmd = &cobra.Command{
 
 func init() {
 	getSecretTextCmd.Flags().StringP("name", "n", "", "secret text data name")
+	getSecretTextCmd.Flags().Uint64P("version", "v", 0, "cred version")
 	getCmd.AddCommand(getSecretTextCmd)
 }

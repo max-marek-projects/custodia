@@ -22,7 +22,19 @@ type Service interface {
 	LogoutAllDevices(ctx context.Context, userID int64) error
 	// secrets management
 	CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error
-	GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error)
+	GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string, version uint64) (data, salt, iv []byte, metadata map[string]string, err error)
+	RollbackSecret(
+		ctx context.Context,
+		userID int64,
+		name string,
+	) error
+	DeleteSecret(
+		ctx context.Context,
+		userID int64,
+		name string,
+	) error
+	UpdateSecretData(ctx context.Context, userID int64, name string, data, salt, iv []byte) error
+	UpdateSecretMetadata(ctx context.Context, userID int64, name string, metadata map[string]string) error
 }
 
 // NewService creates a service instance with the given storage and accrual system address.
@@ -49,7 +61,7 @@ type service struct {
 func (service *service) RegisterUser(ctx context.Context, userData *models.LoginRequest) (*models.LoginResponse, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(userData.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %v", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 	hashedUserData := models.UserData{Login: userData.Login, PasswordHash: hashed}
 	userID, err := service.storage.RegisterUser(ctx, hashedUserData)
@@ -57,15 +69,15 @@ func (service *service) RegisterUser(ctx context.Context, userData *models.Login
 		if errors.Is(err, repository.ErrAlreadyInStorage) {
 			return nil, ErrLoginAlreadyTaken
 		}
-		return nil, fmt.Errorf("failed to register user in storage: %v", err)
+		return nil, fmt.Errorf("failed to register user in storage: %w", err)
 	}
 	accessToken, err := auth.GenerateToken(userID, service.secretKey, service.accessTokenLifespan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %v", err)
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 	refreshToken, err := service.createNewRefreshToken(ctx, userID, userData.DeviceName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new refresh token: %v", err)
+		return nil, fmt.Errorf("failed to create new refresh token: %w", err)
 	}
 	return &models.LoginResponse{UserID: userID, AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
@@ -78,7 +90,7 @@ func (service *service) LoginUser(ctx context.Context, userData *models.LoginReq
 		if errors.Is(err, repository.ErrUserNotFound) {
 			return nil, ErrWrongUsernamePassword
 		}
-		return nil, fmt.Errorf("failed to check user in storage: %v", err)
+		return nil, fmt.Errorf("failed to check user in storage: %w", err)
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(userData.Password))
 	if err != nil {
@@ -86,11 +98,11 @@ func (service *service) LoginUser(ctx context.Context, userData *models.LoginReq
 	}
 	accessToken, err := auth.GenerateToken(userID, service.secretKey, service.accessTokenLifespan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %v", err)
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 	refreshToken, err := service.createNewRefreshToken(ctx, userID, userData.DeviceName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new refresh token: %v", err)
+		return nil, fmt.Errorf("failed to create new refresh token: %w", err)
 	}
 	return &models.LoginResponse{UserID: userID, AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
@@ -99,11 +111,11 @@ func (service *service) LoginUser(ctx context.Context, userData *models.LoginReq
 func (service *service) createNewRefreshToken(ctx context.Context, userID int64, deviceName string) ([]byte, error) {
 	refreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate refresh token: %v", err)
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 	err = service.storage.SaveRefreshToken(ctx, userID, refreshToken, deviceName, service.refreshTokenLifespan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save refresh token: %v", err)
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
 	}
 	return refreshToken, nil
 }
@@ -118,11 +130,11 @@ func (service *service) RefreshAccess(ctx context.Context, userID int64, refresh
 		if errors.Is(err, repository.ErrRefreshTokenExpiredOrInvalid) {
 			return "", ErrRefreshTokenExpiredOrInvalid
 		}
-		return "", fmt.Errorf("failed to validate refresh token: %v", err)
+		return "", fmt.Errorf("failed to validate refresh token: %w", err)
 	}
 	accessToken, err := auth.GenerateToken(userID, service.secretKey, service.accessTokenLifespan)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate access token: %v", err)
+		return "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 	return accessToken, nil
 }
@@ -131,7 +143,7 @@ func (service *service) RefreshAccess(ctx context.Context, userID int64, refresh
 func (service *service) Logout(ctx context.Context, userID int64, deviceName string) error {
 	err := service.storage.RevokeToken(ctx, userID, deviceName)
 	if err != nil {
-		return fmt.Errorf("failed to revoke token: %v", err)
+		return fmt.Errorf("failed to revoke token: %w", err)
 	}
 	return nil
 }
@@ -140,7 +152,7 @@ func (service *service) Logout(ctx context.Context, userID int64, deviceName str
 func (service *service) LogoutAllDevices(ctx context.Context, userID int64) error {
 	err := service.storage.RevokeAllTokens(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to revoke all tokens: %v", err)
+		return fmt.Errorf("failed to revoke all tokens: %w", err)
 	}
 	return nil
 }
@@ -155,10 +167,65 @@ func (service *service) CreateSecret(ctx context.Context, userID int64, dataType
 	return nil
 }
 
-func (service *service) GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error) {
-	data, salt, iv, metadata, err = service.storage.GetSecret(ctx, userID, dataType, name)
+func (service *service) GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string, version uint64) (data, salt, iv []byte, metadata map[string]string, err error) {
+	data, salt, iv, metadata, err = service.storage.GetSecret(ctx, userID, dataType, name, version)
 	if err != nil {
+		if errors.Is(err, repository.ErrSecretNotFound) {
+			return nil, nil, nil, nil, ErrSecretNotFound
+		}
 		return nil, nil, nil, nil, fmt.Errorf("failed to get secret from storage: %w", err)
 	}
 	return data, salt, iv, metadata, nil
+}
+
+func (service *service) RollbackSecret(
+	ctx context.Context,
+	userID int64,
+	name string,
+) error {
+	err := service.storage.RollbackSecret(ctx, userID, name)
+	if err != nil {
+		if errors.Is(err, repository.ErrSecretRollbackNotPossible) {
+			return ErrRollbackNotPossible
+		}
+		return fmt.Errorf("failed to rollback secret in storage: %w", err)
+	}
+	return nil
+}
+
+func (service *service) DeleteSecret(
+	ctx context.Context,
+	userID int64,
+	name string,
+) error {
+	err := service.storage.DeleteSecret(ctx, userID, name)
+	if err != nil {
+		if errors.Is(err, repository.ErrSecretNotFound) {
+			return ErrSecretNotFound
+		}
+		return fmt.Errorf("failed to delete secret in storage: %w", err)
+	}
+	return nil
+}
+
+func (service *service) UpdateSecretData(ctx context.Context, userID int64, name string, data, salt, iv []byte) error {
+	err := service.storage.UpdateSecret(ctx, userID, name, data, salt, iv, nil)
+	if err != nil {
+		if errors.Is(err, repository.ErrSecretNotFound) {
+			return ErrSecretNotFound
+		}
+		return fmt.Errorf("failed to create secret: %w", err)
+	}
+	return nil
+}
+
+func (service *service) UpdateSecretMetadata(ctx context.Context, userID int64, name string, metadata map[string]string) error {
+	err := service.storage.UpdateSecret(ctx, userID, name, nil, nil, nil, metadata)
+	if err != nil {
+		if errors.Is(err, repository.ErrSecretNotFound) {
+			return ErrSecretNotFound
+		}
+		return fmt.Errorf("failed to create secret: %w", err)
+	}
+	return nil
 }

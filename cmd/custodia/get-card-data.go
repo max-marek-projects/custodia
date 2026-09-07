@@ -18,6 +18,10 @@ var getCardDataCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get name value from flag: %w", err)
 		}
+		version, err := cmd.Flags().GetUint64("version")
+		if err != nil {
+			return fmt.Errorf("failed to get version value from flag: %w", err)
+		}
 		if name == "" {
 			fmt.Print("Please type secret data name: ")
 			fmt.Scanln(&name)
@@ -30,7 +34,7 @@ var getCardDataCmd = &cobra.Command{
 		defer cli.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
 		defer cancel()
-		cardData, metadata, err := cli.GetCardData(ctx, name)
+		cardData, metadata, err := cli.GetCardData(ctx, name, version)
 		if err != nil {
 			return fmt.Errorf("failed to login: %w", err)
 		}
@@ -54,5 +58,6 @@ var getCardDataCmd = &cobra.Command{
 
 func init() {
 	getCardDataCmd.Flags().StringP("name", "n", "", "credentials name")
+	getCardDataCmd.Flags().Uint64P("version", "v", 0, "cred version")
 	getCmd.AddCommand(getCardDataCmd)
 }

@@ -204,12 +204,16 @@ func (dbs *dbStorage) RevokeAllTokens(ctx context.Context, userID int64) error {
 // ========== SECRETS ==========
 
 func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error {
+	rawMetadata, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to convert metadata to bytes: %w", err)
+	}
 	query := `
         INSERT INTO secrets (user_id, type, name, data, salt, iv, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
     `
-	_, err := dbs.storage.ExecContext(ctx, query,
-		userID, dataType, name, data, salt, iv, metadata,
+	_, err = dbs.storage.ExecContext(ctx, query,
+		userID, dataType, name, data, salt, iv, rawMetadata,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
@@ -217,18 +221,46 @@ func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType m
 	return nil
 }
 
-func (dbs *dbStorage) GetSecret(ctx context.Context, userID int64, dataType models.DataType, name string) (data, salt, iv []byte, metadata map[string]string, err error) {
+// GetSecret retrieves a secret by userID, type, name, and optionally a specific version.
+// If version is 0, it returns the latest active version. If version > 0, it returns
+// that exact version. Returns sql.ErrNoRows if no matching secret exists.
+//
+// Parameters:
+//   - ctx: context for cancellation.
+//   - userID: owner of the secret.
+//   - dataType: type of the secret.
+//   - name: name of the secret.
+//   - version: specific version to fetch (0 = latest, >0 = exact version).
+//
+// Returns:
+//   - data: the encrypted data.
+//   - salt: the encryption salt.
+//   - iv: the encryption IV.
+//   - metadata: the metadata map (parsed from JSON).
+//   - err: nil on success, or an error if the secret is not found or parsing fails.
+func (dbs *dbStorage) GetSecret(
+	ctx context.Context,
+	userID int64,
+	dataType models.DataType,
+	name string,
+	version uint64,
+) (data, salt, iv []byte, metadata map[string]string, err error) {
 	var rawMetadata []byte
 	query := `
-        SELECT data, salt, iv, metadata FROM secrets 
+		SELECT data, salt, iv, metadata FROM secrets
 		WHERE user_id = $1 AND type = $2 AND name = $3
+		  AND (version = $4 OR $4 = 0)
+		  AND deleted_at IS NULL
 		ORDER BY version DESC
-        LIMIT 1
-    `
+		LIMIT 1
+	`
 	err = dbs.storage.QueryRowContext(ctx, query,
-		userID, dataType, name,
+		userID, dataType, name, version,
 	).Scan(&data, &salt, &iv, &rawMetadata)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, nil, nil, ErrSecretNotFound
+		}
 		return nil, nil, nil, nil, fmt.Errorf("failed to get secret: %w", err)
 	}
 	metadata = make(map[string]string)
@@ -239,4 +271,175 @@ func (dbs *dbStorage) GetSecret(ctx context.Context, userID int64, dataType mode
 		}
 	}
 	return data, salt, iv, metadata, nil
+}
+
+// RollbackSecret rolls back the secret to the previous version by soft-deleting the latest version.
+// This makes the second-latest version the current active one. If there is only one active version,
+// an error is returned.
+//
+// Parameters:
+//   - ctx: context for cancellation.
+//   - userID: owner of the secret.
+//   - dataType: type of the secret.
+//   - name: name of the secret.
+//
+// Returns:
+//   - error: nil on success, or an error if fewer than 2 active versions exist
+//     or the update fails.
+func (dbs *dbStorage) RollbackSecret(
+	ctx context.Context,
+	userID int64,
+	name string,
+) error {
+	// Find the maximum version among active secrets.
+	tx, err := dbs.storage.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create database transaction: %w", err)
+	}
+	defer tx.Rollback()
+	var maxVersion int64
+	queryMax := `
+		SELECT MAX(version)
+		FROM secrets
+		WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL
+	`
+	err = dbs.storage.QueryRowContext(ctx, queryMax, userID, name).Scan(&maxVersion)
+	if err != nil {
+		return fmt.Errorf("failed to get max version: %w", err)
+	}
+	if maxVersion < 2 {
+		return ErrSecretRollbackNotPossible
+	}
+
+	// Soft-delete the latest version.
+	queryUpdate := `
+		UPDATE secrets
+		SET deleted_at = NOW()
+		WHERE user_id = $1 AND name = $2 AND version = $3 AND deleted_at IS NULL
+	`
+	result, err := dbs.storage.ExecContext(ctx, queryUpdate, userID, name, maxVersion)
+	if err != nil {
+		return fmt.Errorf("failed to rollback secret: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrSecretNotFound
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
+}
+
+func (dbs *dbStorage) DeleteSecret(
+	ctx context.Context,
+	userID int64,
+	name string,
+) error {
+	// Soft-delete all versions version.
+	queryUpdate := `
+		UPDATE secrets
+		SET deleted_at = NOW()
+		WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL
+	`
+	result, err := dbs.storage.ExecContext(ctx, queryUpdate, userID, name)
+	if err != nil {
+		return fmt.Errorf("failed to delete secret: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrSecretNotFound
+	}
+	return nil
+}
+
+func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name string, data, salt, iv []byte, metadata map[string]string) error {
+	if data == nil && metadata == nil {
+		return fmt.Errorf("missing data to update")
+	}
+	// start transaction
+	tx, err := dbs.storage.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// get old data from database
+	var oldData, oldSalt, oldIV []byte
+	var oldRawMetadata []byte
+	var oldVersion int64
+	var dataType models.DataType
+
+	selectQuery := `
+        SELECT data, type, salt, iv, metadata, version
+        FROM secrets
+        WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL
+        ORDER BY version DESC
+        LIMIT 1
+        FOR UPDATE
+    `
+	err = tx.QueryRowContext(ctx, selectQuery, userID, name).
+		Scan(&oldData, &dataType, &oldSalt, &oldIV, &oldRawMetadata, &oldVersion)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrSecretNotFound
+		}
+		return fmt.Errorf("failed to fetch current secret: %w", err)
+	}
+
+	oldMetadata := make(map[string]string)
+	if len(oldRawMetadata) > 0 {
+		err = json.Unmarshal(oldRawMetadata, &oldMetadata)
+		if err != nil {
+			return fmt.Errorf("failed to parse metadata: %w", err)
+		}
+	}
+
+	// set new field values
+	newData := oldData
+	newSalt := oldSalt
+	newIV := oldIV
+	newMetadata := oldMetadata
+	if data != nil {
+		if salt == nil || iv == nil {
+			return fmt.Errorf("to update data, both salt and iv must be provided")
+		}
+		newData = data
+		newSalt = salt
+		newIV = iv
+	}
+	if metadata != nil {
+		newMetadata = metadata
+	}
+
+	newRawMetadata, err := json.Marshal(newMetadata)
+	if err != nil {
+		return fmt.Errorf("failed to convert metadata to bytes: %w", err)
+	}
+
+	// insert new version
+	newVersion := oldVersion + 1
+	insertQuery := `
+        INSERT INTO secrets (user_id, name, type, data, salt, iv, metadata, version, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+    `
+	_, err = tx.ExecContext(ctx, insertQuery,
+		userID, name, dataType, newData, newSalt, newIV, newRawMetadata, newVersion,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert new version: %w", err)
+	}
+
+	// commit transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }

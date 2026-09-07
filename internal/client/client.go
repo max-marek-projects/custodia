@@ -225,12 +225,14 @@ func (c *client) CreateCredentials(
 func (c *client) GetCredentials(
 	ctx context.Context,
 	name string,
+	version uint64,
 ) (credentials *models.Credentials, metadata map[string]string, err error) {
 	if !c.session.LoggedIn() {
 		return nil, nil, fmt.Errorf("Can get credentials only from authorized TUI session")
 	}
 	request := &proto.GetSecretRequest{}
 	request.SetName(name)
+	request.SetVersion(version)
 	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
 	resp, err := c.client.GetSecret(
 		ctx,
@@ -248,6 +250,37 @@ func (c *client) GetCredentials(
 		return nil, nil, fmt.Errorf("wrong data format: %w", err)
 	}
 	return credentials, resp.GetMetadata(), nil
+}
+
+func (c *client) UpdateCredentials(
+	ctx context.Context,
+	name string,
+	credentials *models.Credentials,
+) error {
+	if !c.session.LoggedIn() {
+		return fmt.Errorf("Can create credentials only from authorized TUI session")
+	}
+	request := &proto.UpdateSecretDataRequest{}
+	request.SetName(name)
+	credentialsBytes, err := json.Marshal(credentials)
+	if err != nil {
+		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
+	}
+	salt, iv, encryptedData, err := utils.EncryptData(credentialsBytes, c.session.Password)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	request.SetSalt(salt)
+	request.SetIv(iv)
+	request.SetData(encryptedData)
+	_, err = c.client.UpdateSecretData(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ========== secret text ==========
@@ -285,12 +318,14 @@ func (c *client) CreateSecretText(
 func (c *client) GetSecretText(
 	ctx context.Context,
 	name string,
+	version uint64,
 ) (secretText string, metadata map[string]string, err error) {
 	if !c.session.LoggedIn() {
 		return "", nil, fmt.Errorf("Can get credentials only from authorized TUI session")
 	}
 	request := &proto.GetSecretRequest{}
 	request.SetName(name)
+	request.SetVersion(version)
 	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
 	resp, err := c.client.GetSecret(
 		ctx,
@@ -304,6 +339,33 @@ func (c *client) GetSecretText(
 		return "", nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
 	return string(data), resp.GetMetadata(), nil
+}
+
+func (c *client) UpdateSecretText(
+	ctx context.Context,
+	name string,
+	secretText string,
+) error {
+	if !c.session.LoggedIn() {
+		return fmt.Errorf("Can create credentials only from authorized TUI session")
+	}
+	request := &proto.UpdateSecretDataRequest{}
+	request.SetName(name)
+	salt, iv, encryptedData, err := utils.EncryptData([]byte(secretText), c.session.Password)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	request.SetSalt(salt)
+	request.SetIv(iv)
+	request.SetData(encryptedData)
+	_, err = c.client.UpdateSecretData(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ========== secret binary ==========
@@ -341,12 +403,14 @@ func (c *client) CreateSecretBinary(
 func (c *client) GetSecretBinary(
 	ctx context.Context,
 	name string,
+	version uint64,
 ) (secretBinary []byte, metadata map[string]string, err error) {
 	if !c.session.LoggedIn() {
 		return nil, nil, fmt.Errorf("Can get credentials only from authorized TUI session")
 	}
 	request := &proto.GetSecretRequest{}
 	request.SetName(name)
+	request.SetVersion(version)
 	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
 	resp, err := c.client.GetSecret(
 		ctx,
@@ -360,6 +424,33 @@ func (c *client) GetSecretBinary(
 		return nil, nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
 	return data, resp.GetMetadata(), nil
+}
+
+func (c *client) UpdateSecretBinary(
+	ctx context.Context,
+	name string,
+	secretBinary []byte,
+) error {
+	if !c.session.LoggedIn() {
+		return fmt.Errorf("Can create credentials only from authorized TUI session")
+	}
+	request := &proto.UpdateSecretDataRequest{}
+	request.SetName(name)
+	salt, iv, encryptedData, err := utils.EncryptData(secretBinary, c.session.Password)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	request.SetSalt(salt)
+	request.SetIv(iv)
+	request.SetData(encryptedData)
+	_, err = c.client.UpdateSecretData(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ========== card data ==========
@@ -401,12 +492,14 @@ func (c *client) CreateCardData(
 func (c *client) GetCardData(
 	ctx context.Context,
 	name string,
+	version uint64,
 ) (cardData *models.CardData, metadata map[string]string, err error) {
 	if !c.session.LoggedIn() {
 		return nil, nil, fmt.Errorf("Can get credentials only from authorized TUI session")
 	}
 	request := &proto.GetSecretRequest{}
 	request.SetName(name)
+	request.SetVersion(version)
 	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
 	resp, err := c.client.GetSecret(
 		ctx,
@@ -424,4 +517,87 @@ func (c *client) GetCardData(
 		return nil, nil, fmt.Errorf("wrong data format: %w", err)
 	}
 	return cardData, resp.GetMetadata(), nil
+}
+
+func (c *client) UpdateCardData(
+	ctx context.Context,
+	name string,
+	cardData *models.CardData,
+) error {
+	if !c.session.LoggedIn() {
+		return fmt.Errorf("Can create credentials only from authorized TUI session")
+	}
+	request := &proto.UpdateSecretDataRequest{}
+	request.SetName(name)
+	credentialsBytes, err := json.Marshal(cardData)
+	if err != nil {
+		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
+	}
+	salt, iv, encryptedData, err := utils.EncryptData(credentialsBytes, c.session.Password)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	request.SetSalt(salt)
+	request.SetIv(iv)
+	request.SetData(encryptedData)
+	_, err = c.client.UpdateSecretData(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ========== mutual ==========
+
+func (c *client) RollbackSecret(
+	ctx context.Context,
+	name string,
+) error {
+	request := &proto.RollbackSecretRequest{}
+	request.SetName(name)
+	_, err := c.client.RollbackSecret(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *client) DeleteSecret(
+	ctx context.Context,
+	name string,
+) error {
+	request := &proto.DeleteSecretRequest{}
+	request.SetName(name)
+	_, err := c.client.DeleteSecret(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *client) UpdateMetadata(
+	ctx context.Context,
+	name string,
+	metadata map[string]string,
+) error {
+	request := &proto.UpdateSecretMetadataRequest{}
+	request.SetName(name)
+	request.SetMetadata(metadata)
+	_, err := c.client.UpdateSecretMetadata(
+		ctx,
+		request,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }
