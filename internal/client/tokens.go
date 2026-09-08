@@ -4,6 +4,7 @@ package client
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -30,12 +31,12 @@ func newTokenStorage(folder, filename string) *tokenStorage {
 func (t *tokenStorage) getFilePath() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get user configuration directory: %w", err)
 	}
 	appConfigDir := filepath.Join(configDir, "custodia")
 	err = os.MkdirAll(appConfigDir, 0700)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create tokens file parent directory: %w", err)
 	}
 	tokenFilepath := filepath.Join(appConfigDir, "tokens.json")
 	logger.Log.Debug("token filepath", slog.String("filepath", tokenFilepath))
@@ -46,26 +47,29 @@ func (t *tokenStorage) getFilePath() (string, error) {
 // It acquires a write lock and creates the file with 0600 permissions.
 //
 // Parameters:
-//   - tokens: the token data to store (must be non‑nil).
+//   - tokens: the token data to store. Must not be nil.
 //
 // Returns:
 //   - error: nil on success, or an error if the file path cannot be obtained,
 //     marshaling fails, or writing the file fails.
 func (t *tokenStorage) Save(tokens *models.Tokens) error {
+	if tokens == nil {
+		return errors.New("tokens is nil")
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	tokensFilePath, err := t.getFilePath()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get file path: %w", err)
 	}
 	jsonData, err := json.MarshalIndent(tokens, "", "    ")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to convert tokens data to json: %w", err)
 	}
 	err = os.WriteFile(tokensFilePath, jsonData, 0600)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write to file: %w", err)
 	}
 	return nil
 }
@@ -82,18 +86,18 @@ func (t *tokenStorage) Read() (*models.Tokens, error) {
 
 	path, err := t.getFilePath()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get file path: %w", err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &models.Tokens{}, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to read tokens file: %w", err)
 	}
 	var s models.Tokens
 	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tokens from file: %w", err)
 	}
 	return &s, nil
 }
@@ -109,11 +113,14 @@ func (t *tokenStorage) Clear() error {
 
 	path, err := t.getFilePath()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get file path: %w", err)
 	}
 	err = os.Remove(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to remove tokens file: %w", err)
+	}
+	return nil
 }

@@ -33,7 +33,7 @@ var registerCmd = &cobra.Command{
 			return err
 		}
 		defer cli.Close()
-		if err := cli.Register(context.Background(), login, session.Password, configuration.SessionTTL); err != nil {
+		if err := cli.Register(context.Background(), login, session.Password, configuration.SessionTTL.Duration()); err != nil {
 			return err
 		}
 		fmt.Println("registered successfully")

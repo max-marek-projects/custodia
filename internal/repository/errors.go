@@ -18,3 +18,9 @@ var ErrSecretRollbackNotPossible = errors.New("no active version found to rollba
 
 // ErrSecretNotFound is returned when secret data was not found.
 var ErrSecretNotFound = errors.New("secret not found")
+
+// ErrInvalidArgument is returned when invalid argument value was received
+var ErrInvalidArgument = errors.New("invalid argument received")
+
+// ErrNoChanges is returned when no changes applied in database.
+var ErrNoChanges = errors.New("no changes")

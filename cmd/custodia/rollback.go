@@ -26,7 +26,7 @@ var rollbackCmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %w", err)
 		}
 		defer cli.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout.Duration())
 		defer cancel()
 		err = cli.RollbackSecret(ctx, name)
 		if err != nil {

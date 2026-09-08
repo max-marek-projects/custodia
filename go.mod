@@ -3,6 +3,7 @@ module github.com/max-marek-projects/custodia
 go 1.26.0
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
 	github.com/caarlos0/env/v11 v11.4.1 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
@@ -19,6 +20,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.14 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.design/x/clipboard v0.9.0 // indirect

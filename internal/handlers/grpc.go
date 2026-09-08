@@ -1,3 +1,4 @@
+// Package handlers provides gRPC handlers for authentication and secret management.
 package handlers
 
 import (
@@ -14,50 +15,59 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GRPCHandler handles grpc endpoints for URL shortening and redirection.
+// GRPCHandler implements the Custodia gRPC service.
 type GRPCHandler struct {
 	proto.UnimplementedCustodiaServer
 	service service.Service
 }
 
-// NewGRPCHandler creates a new GRPCHandler.
-func NewGRPCHandler(service service.Service) *GRPCHandler {
-	return &GRPCHandler{service: service}
+// NewGRPCHandler creates a new GRPCHandler instance.
+//
+// Parameters:
+//   - srv: the business logic service implementation.
+//
+// Returns:
+//   - *GRPCHandler: the initialized handler.
+func NewGRPCHandler(srv service.Service) *GRPCHandler {
+	return &GRPCHandler{service: srv}
 }
 
-// ========== AUTH ==========
+// ---------- Auth ----------
 
 // RegisterUser handles user registration.
-// Reads login/password from request, creates a user, and generates access tokens.
+// It validates the request, calls the service to create a user, and returns tokens.
+//
+// Parameters:
+//   - ctx: the request context.
+//   - req: the registration request containing login, password, and device name.
+//
+// Returns:
+//   - *proto.LoginResponse: contains user ID and tokens.
+//   - error: gRPC status error if validation fails, login already exists, or internal error.
 func (h *GRPCHandler) RegisterUser(
 	ctx context.Context,
 	req *proto.LoginRequest,
 ) (*proto.LoginResponse, error) {
 	if req == nil {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"request is nil",
-		)
+		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
 	if req.GetLogin() == "" || req.GetPassword() == "" {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"Empty login or password",
-		)
+		return nil, status.Error(codes.InvalidArgument, "Empty login or password")
 	}
-	registrationData, err := h.service.RegisterUser(ctx, &models.LoginRequest{Login: req.GetLogin(), Password: req.GetPassword(), DeviceName: req.GetDeviceName()})
+	registrationData, err := h.service.RegisterUser(ctx, &models.LoginRequest{
+		Login:      req.GetLogin(),
+		Password:   req.GetPassword(),
+		DeviceName: req.GetDeviceName(),
+	})
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		if errors.Is(err, service.ErrLoginAlreadyTaken) {
-			return nil, status.Error(
-				codes.AlreadyExists,
-				err.Error(),
-			)
+			return nil, status.Error(codes.AlreadyExists, err.Error())
 		}
 		logger.Log.Error("Failed to register user", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.LoginResponse{}
 	response.SetUserId(registrationData.UserID)
@@ -66,37 +76,40 @@ func (h *GRPCHandler) RegisterUser(
 	return response, nil
 }
 
-// LoginUser handles user login.
-// Reads login/password from request, checks if user is registered and generates access tokens.
+// LoginUser handles user authentication.
+// It validates credentials and returns tokens upon success.
+//
+// Parameters:
+//   - ctx: the request context.
+//   - req: the login request with credentials and device name.
+//
+// Returns:
+//   - *proto.LoginResponse: contains user ID and tokens.
+//   - error: gRPC status error if validation fails, wrong credentials, or internal error.
 func (h *GRPCHandler) LoginUser(
 	ctx context.Context,
 	req *proto.LoginRequest,
 ) (*proto.LoginResponse, error) {
 	if req == nil {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"request is nil",
-		)
+		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
 	if req.GetLogin() == "" || req.GetPassword() == "" {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"Empty login or password",
-		)
+		return nil, status.Error(codes.InvalidArgument, "Empty login or password")
 	}
-	loginData, err := h.service.LoginUser(ctx, &models.LoginRequest{Login: req.GetLogin(), Password: req.GetPassword(), DeviceName: req.GetDeviceName()})
+	loginData, err := h.service.LoginUser(ctx, &models.LoginRequest{
+		Login:      req.GetLogin(),
+		Password:   req.GetPassword(),
+		DeviceName: req.GetDeviceName(),
+	})
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		if errors.Is(err, service.ErrWrongUsernamePassword) {
-			return nil, status.Error(
-				codes.PermissionDenied,
-				"Wrong username or password",
-			)
+			return nil, status.Error(codes.PermissionDenied, "Wrong username or password")
 		}
 		logger.Log.Error("Failed to login user", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.LoginResponse{}
 	response.SetUserId(loginData.UserID)
@@ -105,43 +118,51 @@ func (h *GRPCHandler) LoginUser(
 	return response, nil
 }
 
-// Refresh creates new access token based on refresh token.
+// Refresh generates a new access token using a valid refresh token.
+//
+// Parameters:
+//   - ctx: the request context.
+//   - req: contains user ID, refresh token, and device name.
+//
+// Returns:
+//   - *proto.RefreshResponse: contains the new access token.
+//   - error: gRPC status error if validation fails, token invalid, or internal error.
 func (h *GRPCHandler) Refresh(
 	ctx context.Context,
 	req *proto.RefreshRequest,
 ) (*proto.RefreshResponse, error) {
 	if req == nil {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"request is nil",
-		)
+		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
 	if req.GetRefreshToken() == nil {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"Empty refresh token",
-		)
+		return nil, status.Error(codes.InvalidArgument, "Empty refresh token")
 	}
 	accessToken, err := h.service.RefreshAccess(ctx, req.GetUserId(), req.GetRefreshToken(), req.GetDeviceName())
 	if err != nil {
-		if errors.Is(err, service.ErrRefreshTokenExpiredOrInvalid) {
-			return nil, status.Error(
-				codes.PermissionDenied,
-				"Refresh token expired or invalid",
-			)
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		logger.Log.Error("Failed to login user", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		if errors.Is(err, service.ErrRefreshTokenExpiredOrInvalid) {
+			return nil, status.Error(codes.PermissionDenied, "Refresh token expired or invalid")
+		}
+		logger.Log.Error("Failed to refresh token", slog.Any("error", err))
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.RefreshResponse{}
 	response.SetAccessToken(accessToken)
 	return response, nil
 }
 
-// Logout logs current user out.
+// LogoutDevice revokes the refresh token for the specified device.
+// It expects the user ID in the context (set by auth interceptor).
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains the device name to revoke.
+//
+// Returns:
+//   - *proto.LogoutDeviceResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, or internal error.
 func (h *GRPCHandler) LogoutDevice(
 	ctx context.Context,
 	req *proto.LogoutDeviceRequest,
@@ -149,23 +170,29 @@ func (h *GRPCHandler) LogoutDevice(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.Logout(ctx, userID, req.GetDeviceName())
-	if err != nil {
+	if err != nil && !errors.Is(err, service.ErrNoChanges) {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		logger.Log.Error("Failed to logout user", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.LogoutDeviceResponse{}, nil
 }
 
-// Logout logs current user out.
+// LogoutAllDevices revokes all refresh tokens for the user.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: empty request.
+//
+// Returns:
+//   - *proto.LogoutAllDevicesResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, or internal error.
 func (h *GRPCHandler) LogoutAllDevices(
 	ctx context.Context,
 	req *proto.LogoutAllDevicesRequest,
@@ -173,24 +200,31 @@ func (h *GRPCHandler) LogoutAllDevices(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.LogoutAllDevices(ctx, userID)
-	if err != nil {
+	if err != nil && !errors.Is(err, service.ErrNoChanges) {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		logger.Log.Error("Failed to logout user from all devices", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.LogoutAllDevicesResponse{}, nil
 }
 
-// ========== SECRETS ==========
+// ---------- Secrets ----------
 
+// CreateSecret stores a new secret for the authenticated user.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains secret type, name, encrypted data, salt, IV, and metadata.
+//
+// Returns:
+//   - *proto.CreateSecretResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, secret exists, or internal error.
 func (h *GRPCHandler) CreateSecret(
 	ctx context.Context,
 	req *proto.CreateSecretRequest,
@@ -198,30 +232,37 @@ func (h *GRPCHandler) CreateSecret(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	dataType, found := models.ProtoDataTypeToString[req.GetType()]
 	if !found {
 		logger.Log.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.InvalidArgument, "Invalid data type")
 	}
 	err := h.service.CreateSecret(ctx, userID, dataType, req.GetName(), req.GetData(), req.GetSalt(), req.GetIv(), req.GetMetadata())
 	if err != nil {
+		if errors.Is(err, service.ErrSecretConflict) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		logger.Log.Error("Failed to create secret", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.CreateSecretResponse{}, nil
 }
 
+// GetSecret retrieves a secret by type, name, and version.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains secret type, name, and version (0 for latest).
+//
+// Returns:
+//   - *proto.GetSecretResponse: contains the secret data, salt, IV, and metadata.
+//   - error: gRPC status error if user ID missing, validation fails, secret not found, or internal error.
 func (h *GRPCHandler) GetSecret(
 	ctx context.Context,
 	req *proto.GetSecretRequest,
@@ -229,32 +270,23 @@ func (h *GRPCHandler) GetSecret(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	dataType, found := models.ProtoDataTypeToString[req.GetType()]
 	if !found {
 		logger.Log.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.InvalidArgument, "Invalid data type")
 	}
 	data, salt, iv, metadata, err := h.service.GetSecret(ctx, userID, dataType, req.GetName(), req.GetVersion())
 	if err != nil {
-		if errors.Is(err, service.ErrSecretNotFound) {
-			return nil, status.Error(
-				codes.NotFound,
-				"secret not found",
-			)
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		logger.Log.Error("Failed to create secret", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		if errors.Is(err, service.ErrSecretNotFound) {
+			return nil, status.Error(codes.NotFound, "secret not found")
+		}
+		logger.Log.Error("Failed to get secret", slog.Any("error", err))
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.GetSecretResponse{}
 	response.SetData(data)
@@ -264,6 +296,16 @@ func (h *GRPCHandler) GetSecret(
 	return response, nil
 }
 
+// RollbackSecret reverts the secret to the previous version.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains the secret name.
+//
+// Returns:
+//   - *proto.RollbackSecretResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, not enough versions, secret not found, or internal error.
 func (h *GRPCHandler) RollbackSecret(
 	ctx context.Context,
 	req *proto.RollbackSecretRequest,
@@ -271,35 +313,35 @@ func (h *GRPCHandler) RollbackSecret(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.RollbackSecret(ctx, userID, req.GetName())
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		if errors.Is(err, service.ErrRollbackNotPossible) {
-			return nil, status.Error(
-				codes.PermissionDenied,
-				"no version to roll back",
-			)
+			return nil, status.Error(codes.NotFound, "no version to roll back")
 		}
 		if errors.Is(err, service.ErrSecretNotFound) {
-			return nil, status.Error(
-				codes.NotFound,
-				"secret not found",
-			)
+			return nil, status.Error(codes.NotFound, "secret not found")
 		}
 		logger.Log.Error("Failed to rollback secret", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
-	response := &proto.RollbackSecretResponse{}
-	return response, nil
+	return &proto.RollbackSecretResponse{}, nil
 }
 
+// DeleteSecret permanently soft-deletes all versions of the secret.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains the secret name.
+//
+// Returns:
+//   - *proto.DeleteSecretResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, secret not found, or internal error.
 func (h *GRPCHandler) DeleteSecret(
 	ctx context.Context,
 	req *proto.DeleteSecretRequest,
@@ -307,29 +349,32 @@ func (h *GRPCHandler) DeleteSecret(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.DeleteSecret(ctx, userID, req.GetName())
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		if errors.Is(err, service.ErrSecretNotFound) {
-			return nil, status.Error(
-				codes.NotFound,
-				"cred not found",
-			)
+			return nil, status.Error(codes.NotFound, "cred not found")
 		}
 		logger.Log.Error("Failed to delete secret", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
-	response := &proto.DeleteSecretResponse{}
-	return response, nil
+	return &proto.DeleteSecretResponse{}, nil
 }
 
+// UpdateSecretData updates only the encrypted data of a secret (requires new salt/IV).
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains the secret name, new data, salt, and IV.
+//
+// Returns:
+//   - *proto.UpdateSecretDataResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, secret not found, or internal error.
 func (h *GRPCHandler) UpdateSecretData(
 	ctx context.Context,
 	req *proto.UpdateSecretDataRequest,
@@ -337,28 +382,32 @@ func (h *GRPCHandler) UpdateSecretData(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.UpdateSecretData(ctx, userID, req.GetName(), req.GetData(), req.GetSalt(), req.GetIv())
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		if errors.Is(err, service.ErrSecretNotFound) {
-			return nil, status.Error(
-				codes.NotFound,
-				"cred not found",
-			)
+			return nil, status.Error(codes.NotFound, "cred not found")
 		}
 		logger.Log.Error("Failed to update secret", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.UpdateSecretDataResponse{}, nil
 }
 
+// UpdateSecretMetadata updates only the metadata of a secret.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains the secret name and new metadata.
+//
+// Returns:
+//   - *proto.UpdateSecretMetadataResponse: empty on success.
+//   - error: gRPC status error if user ID missing, validation fails, secret not found, or internal error.
 func (h *GRPCHandler) UpdateSecretMetadata(
 	ctx context.Context,
 	req *proto.UpdateSecretMetadataRequest,
@@ -366,24 +415,18 @@ func (h *GRPCHandler) UpdateSecretMetadata(
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
 		logger.Log.Error("Failed to get user id from context. Interceptor error")
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.UpdateSecretMetadata(ctx, userID, req.GetName(), req.GetMetadata())
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 		if errors.Is(err, service.ErrSecretNotFound) {
-			return nil, status.Error(
-				codes.NotFound,
-				"cred not found",
-			)
+			return nil, status.Error(codes.NotFound, "cred not found")
 		}
 		logger.Log.Error("Failed to update secret", slog.Any("error", err))
-		return nil, status.Error(
-			codes.Internal,
-			"Internal error",
-		)
+		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.UpdateSecretMetadataResponse{}, nil
 }

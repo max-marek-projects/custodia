@@ -32,7 +32,7 @@ var getSecretTextCmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %w", err)
 		}
 		defer cli.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout.Duration())
 		defer cancel()
 		secretText, metadata, err := cli.GetSecretText(ctx, name, version)
 		if err != nil {
@@ -42,7 +42,7 @@ var getSecretTextCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to plot metadata to console: %w", err)
 		}
-		err = utils.CopyToClipboard(ctx, []byte(secretText), configuration.SecretsTTL)
+		err = utils.CopyToClipboard(ctx, []byte(secretText), configuration.SecretsTTL.Duration())
 		if err != nil {
 			return fmt.Errorf("failed to save secret data to clipboard: %w", err)
 		}

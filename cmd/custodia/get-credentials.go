@@ -32,7 +32,7 @@ var getCredentialsCmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %w", err)
 		}
 		defer cli.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout.Duration())
 		defer cancel()
 		credentials, metadata, err := cli.GetCredentials(ctx, name, version)
 		if err != nil {
@@ -46,7 +46,7 @@ var getCredentialsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to plot metadata to console: %w", err)
 		}
-		err = utils.CopyToClipboard(ctx, credentialsBytes, configuration.SecretsTTL)
+		err = utils.CopyToClipboard(ctx, credentialsBytes, configuration.SecretsTTL.Duration())
 		if err != nil {
 			return fmt.Errorf("failed to save secret data to clipboard: %w", err)
 		}

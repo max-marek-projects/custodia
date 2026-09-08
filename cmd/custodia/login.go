@@ -34,7 +34,7 @@ var loginCmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %w", err)
 		}
 		defer cli.Close()
-		if err := cli.Login(context.Background(), login, session.Password, configuration.SessionTTL); err != nil {
+		if err := cli.Login(context.Background(), login, session.Password, configuration.SessionTTL.Duration()); err != nil {
 			return fmt.Errorf("failed to login: %w", err)
 		}
 		fmt.Println("logged in successfully")

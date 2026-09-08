@@ -63,7 +63,7 @@ func parseMeta(pairs string) (map[string]string, error) {
 	var metadata map[string]string
 	err := json.Unmarshal([]byte(pairs), &metadata)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse metadata: %w", err)
 	}
 	return metadata, nil
 }

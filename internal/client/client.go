@@ -14,8 +14,12 @@ import (
 	"github.com/max-marek-projects/custodia/internal/utils"
 	"github.com/max-marek-projects/custodia/pkg/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
+
+//go:generate mockery --name=CustodiaClient --srcpkg=github.com/max-marek-projects/custodia/pkg/proto --output=. --outpkg=client --filename=mock_client.gen_test.go --with-expecter --structname=MockClient
 
 // Handler handles grpc endpoints for URL shortening and redirection.
 type client struct {
@@ -62,12 +66,7 @@ func (c *client) Close() error {
 
 // ========== AUTH ==========
 
-func (c *client) Login(
-	ctx context.Context,
-	login string,
-	password []byte,
-	sessionTTL time.Duration,
-) error {
+func (c *client) Login(ctx context.Context, login string, password []byte, sessionTTL time.Duration) error {
 	request := &proto.LoginRequest{}
 	request.SetLogin(login)
 	request.SetPassword(string(password))
@@ -76,29 +75,32 @@ func (c *client) Login(
 		return err
 	}
 	request.SetDeviceName(deviceName)
-	resp, err := c.client.LoginUser(
-		ctx,
-		request,
-	)
+	resp, err := c.client.LoginUser(ctx, request)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				return fmt.Errorf("invalid login or password: %s", st.Message())
+			case codes.PermissionDenied:
+				return ErrInvalidCredentials
+			case codes.Unauthenticated:
+				return ErrInvalidCredentials
+			default:
+				return fmt.Errorf("login failed: %w", err)
+			}
+		}
+		return fmt.Errorf("login failed: %w", err)
 	}
 	c.session.ExpiresAt = time.Now().Add(sessionTTL)
 	c.session.Password = password
-	return c.storage.Save(
-		&models.Tokens{
-			UserID:       resp.GetUserId(),
-			AccessToken:  resp.GetAccessToken(),
-			RefreshToken: resp.GetRefreshToken(),
-		})
+	return c.storage.Save(&models.Tokens{
+		UserID:       resp.GetUserId(),
+		AccessToken:  resp.GetAccessToken(),
+		RefreshToken: resp.GetRefreshToken(),
+	})
 }
 
-func (c *client) Register(
-	ctx context.Context,
-	login string,
-	password []byte,
-	sessionTTL time.Duration,
-) error {
+func (c *client) Register(ctx context.Context, login string, password []byte, sessionTTL time.Duration) error {
 	request := &proto.LoginRequest{}
 	request.SetLogin(login)
 	request.SetPassword(string(password))
@@ -107,21 +109,20 @@ func (c *client) Register(
 		return err
 	}
 	request.SetDeviceName(deviceName)
-	resp, err := c.client.RegisterUser(
-		ctx,
-		request,
-	)
+	resp, err := c.client.RegisterUser(ctx, request)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok && st.Code() == codes.AlreadyExists {
+			return ErrLoginAlreadyTaken
+		}
+		return fmt.Errorf("registration failed: %w", err)
 	}
-	c.session.Password = password
 	c.session.ExpiresAt = time.Now().Add(sessionTTL)
-	return c.storage.Save(
-		&models.Tokens{
-			UserID:       resp.GetUserId(),
-			AccessToken:  resp.GetAccessToken(),
-			RefreshToken: resp.GetRefreshToken(),
-		})
+	c.session.Password = password
+	return c.storage.Save(&models.Tokens{
+		UserID:       resp.GetUserId(),
+		AccessToken:  resp.GetAccessToken(),
+		RefreshToken: resp.GetRefreshToken(),
+	})
 }
 
 func (c *client) RefreshAccess(
@@ -139,12 +140,12 @@ func (c *client) RefreshAccess(
 		return err
 	}
 	request.SetDeviceName(deviceName)
-	resp, err := c.client.Refresh(
-		ctx,
-		request,
-	)
+	resp, err := c.client.Refresh(ctx, request)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok && st.Code() == codes.PermissionDenied {
+			return ErrRefreshTokenExpired
+		}
+		return fmt.Errorf("failed to refresh token: %w", err)
 	}
 	return c.storage.Save(
 		&models.Tokens{
@@ -178,7 +179,10 @@ func (c *client) Logout(
 		)
 	}
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok && st.Code() == codes.InvalidArgument {
+			return ErrInvalidCredentials
+		}
+		return fmt.Errorf("logout failed: %w", err)
 	}
 	c.session.Clear()
 	return c.storage.Clear()
@@ -188,38 +192,92 @@ func (c *client) Logout(
 
 // ========== credentials ==========
 
-func (c *client) CreateCredentials(
+func (c *client) createSecret(
 	ctx context.Context,
 	name string,
-	credentials *models.Credentials,
+	data []byte,
 	metadata map[string]string,
+	dataType proto.DataType,
 ) error {
 	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
+		return ErrSessionRequired
 	}
 	request := &proto.CreateSecretRequest{}
 	request.SetName(name)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
+	request.SetType(dataType)
 	request.SetMetadata(metadata)
-	credentialsBytes, err := json.Marshal(credentials)
-	if err != nil {
-		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
-	}
-	salt, iv, encryptedData, err := utils.EncryptData(credentialsBytes, c.session.Password)
+	salt, iv, encryptedData, err := utils.EncryptData(data, c.session.Password)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt data: %w", err)
 	}
 	request.SetSalt(salt)
 	request.SetIv(iv)
 	request.SetData(encryptedData)
-	_, err = c.client.CreateSecret(
+	_, err = c.client.CreateSecret(ctx, request)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.AlreadyExists:
+				return fmt.Errorf("%w: secret '%s' already exists", ErrSecretAlreadyExists, name)
+			case codes.InvalidArgument:
+				return fmt.Errorf("invalid secret data: %s", st.Message())
+			default:
+				return fmt.Errorf("failed to create secret: %w", err)
+			}
+		}
+		return fmt.Errorf("failed to create secret: %w", err)
+	}
+	return nil
+}
+
+func (c *client) CreateCredentials(
+	ctx context.Context,
+	name string,
+	credentials *models.Credentials,
+	metadata map[string]string,
+) error {
+	credentialsBytes, err := json.Marshal(credentials)
+	if err != nil {
+		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
+	}
+	return c.createSecret(ctx, name, credentialsBytes, metadata, proto.DataType_DATA_TYPE_CREDENTIALS)
+}
+
+func (c *client) getSecret(
+	ctx context.Context,
+	name string,
+	version uint64,
+	dataType proto.DataType,
+) (data []byte, metadata map[string]string, err error) {
+	if !c.session.LoggedIn() {
+		return nil, nil, ErrSessionRequired
+	}
+	request := &proto.GetSecretRequest{}
+	request.SetName(name)
+	request.SetVersion(version)
+	request.SetType(dataType)
+	resp, err := c.client.GetSecret(
 		ctx,
 		request,
 	)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return nil, nil, fmt.Errorf("%w: secret '%s' not found", ErrSecretNotFound, name)
+			case codes.InvalidArgument:
+				return nil, nil, fmt.Errorf("invalid request: %s", st.Message())
+			default:
+				return nil, nil, fmt.Errorf("failed to get secret: %w", err)
+			}
+		}
+		return nil, nil, fmt.Errorf("failed to get secret: %w", err)
 	}
-	return nil
+	data, err = utils.DecryptData(resp.GetSalt(), resp.GetIv(), resp.GetData(), c.session.Password)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decrypt data: %w", err)
+	}
+	return data, resp.GetMetadata(), nil
 }
 
 func (c *client) GetCredentials(
@@ -227,29 +285,49 @@ func (c *client) GetCredentials(
 	name string,
 	version uint64,
 ) (credentials *models.Credentials, metadata map[string]string, err error) {
-	if !c.session.LoggedIn() {
-		return nil, nil, fmt.Errorf("Can get credentials only from authorized TUI session")
-	}
-	request := &proto.GetSecretRequest{}
-	request.SetName(name)
-	request.SetVersion(version)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	resp, err := c.client.GetSecret(
-		ctx,
-		request,
-	)
+	data, metadata, err := c.getSecret(ctx, name, version, proto.DataType_DATA_TYPE_CREDENTIALS)
 	if err != nil {
-		return nil, nil, err
-	}
-	data, err := utils.DecryptData(resp.GetSalt(), resp.GetIv(), resp.GetData(), c.session.Password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decrypt data: %w", err)
+		return nil, nil, fmt.Errorf("failed to get secret data: %w", err)
 	}
 	err = json.Unmarshal(data, &credentials)
 	if err != nil {
 		return nil, nil, fmt.Errorf("wrong data format: %w", err)
 	}
-	return credentials, resp.GetMetadata(), nil
+	return credentials, metadata, nil
+}
+
+func (c *client) updateSecret(
+	ctx context.Context,
+	name string,
+	data []byte,
+) error {
+	if !c.session.LoggedIn() {
+		return ErrSessionRequired
+	}
+	request := &proto.UpdateSecretDataRequest{}
+	request.SetName(name)
+	salt, iv, encryptedData, err := utils.EncryptData(data, c.session.Password)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	request.SetSalt(salt)
+	request.SetIv(iv)
+	request.SetData(encryptedData)
+	_, err = c.client.UpdateSecretData(ctx, request)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return fmt.Errorf("%w: secret '%s' not found", ErrSecretNotFound, name)
+			case codes.InvalidArgument:
+				return fmt.Errorf("invalid secret data: %s", st.Message())
+			default:
+				return fmt.Errorf("failed to update secret: %w", err)
+			}
+		}
+		return fmt.Errorf("failed to update secret: %w", err)
+	}
+	return nil
 }
 
 func (c *client) UpdateCredentials(
@@ -257,30 +335,11 @@ func (c *client) UpdateCredentials(
 	name string,
 	credentials *models.Credentials,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.UpdateSecretDataRequest{}
-	request.SetName(name)
 	credentialsBytes, err := json.Marshal(credentials)
 	if err != nil {
 		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
 	}
-	salt, iv, encryptedData, err := utils.EncryptData(credentialsBytes, c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.UpdateSecretData(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.updateSecret(ctx, name, credentialsBytes)
 }
 
 // ========== secret text ==========
@@ -291,28 +350,7 @@ func (c *client) CreateSecretText(
 	secretText string,
 	metadata map[string]string,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.CreateSecretRequest{}
-	request.SetName(name)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	request.SetMetadata(metadata)
-	salt, iv, encryptedData, err := utils.EncryptData([]byte(secretText), c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.CreateSecret(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.createSecret(ctx, name, []byte(secretText), metadata, proto.DataType_DATA_TYPE_TEXT)
 }
 
 func (c *client) GetSecretText(
@@ -320,25 +358,11 @@ func (c *client) GetSecretText(
 	name string,
 	version uint64,
 ) (secretText string, metadata map[string]string, err error) {
-	if !c.session.LoggedIn() {
-		return "", nil, fmt.Errorf("Can get credentials only from authorized TUI session")
-	}
-	request := &proto.GetSecretRequest{}
-	request.SetName(name)
-	request.SetVersion(version)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	resp, err := c.client.GetSecret(
-		ctx,
-		request,
-	)
+	data, metadata, err := c.getSecret(ctx, name, version, proto.DataType_DATA_TYPE_TEXT)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to get secret data: %w", err)
 	}
-	data, err := utils.DecryptData(resp.GetSalt(), resp.GetIv(), resp.GetData(), c.session.Password)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to decrypt data: %w", err)
-	}
-	return string(data), resp.GetMetadata(), nil
+	return string(data), metadata, nil
 }
 
 func (c *client) UpdateSecretText(
@@ -346,26 +370,7 @@ func (c *client) UpdateSecretText(
 	name string,
 	secretText string,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.UpdateSecretDataRequest{}
-	request.SetName(name)
-	salt, iv, encryptedData, err := utils.EncryptData([]byte(secretText), c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.UpdateSecretData(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.updateSecret(ctx, name, []byte(secretText))
 }
 
 // ========== secret binary ==========
@@ -376,28 +381,7 @@ func (c *client) CreateSecretBinary(
 	secretBinary []byte,
 	metadata map[string]string,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.CreateSecretRequest{}
-	request.SetName(name)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	request.SetMetadata(metadata)
-	salt, iv, encryptedData, err := utils.EncryptData(secretBinary, c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.CreateSecret(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.createSecret(ctx, name, secretBinary, metadata, proto.DataType_DATA_TYPE_BINARY)
 }
 
 func (c *client) GetSecretBinary(
@@ -405,25 +389,11 @@ func (c *client) GetSecretBinary(
 	name string,
 	version uint64,
 ) (secretBinary []byte, metadata map[string]string, err error) {
-	if !c.session.LoggedIn() {
-		return nil, nil, fmt.Errorf("Can get credentials only from authorized TUI session")
-	}
-	request := &proto.GetSecretRequest{}
-	request.SetName(name)
-	request.SetVersion(version)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	resp, err := c.client.GetSecret(
-		ctx,
-		request,
-	)
+	data, metadata, err := c.getSecret(ctx, name, version, proto.DataType_DATA_TYPE_BINARY)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get secret data: %w", err)
 	}
-	data, err := utils.DecryptData(resp.GetSalt(), resp.GetIv(), resp.GetData(), c.session.Password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decrypt data: %w", err)
-	}
-	return data, resp.GetMetadata(), nil
+	return data, metadata, nil
 }
 
 func (c *client) UpdateSecretBinary(
@@ -431,26 +401,7 @@ func (c *client) UpdateSecretBinary(
 	name string,
 	secretBinary []byte,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.UpdateSecretDataRequest{}
-	request.SetName(name)
-	salt, iv, encryptedData, err := utils.EncryptData(secretBinary, c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.UpdateSecretData(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.updateSecret(ctx, name, secretBinary)
 }
 
 // ========== card data ==========
@@ -461,32 +412,11 @@ func (c *client) CreateCardData(
 	cardData *models.CardData,
 	metadata map[string]string,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.CreateSecretRequest{}
-	request.SetName(name)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	request.SetMetadata(metadata)
-	credentialsBytes, err := json.Marshal(cardData)
+	cardBytes, err := json.Marshal(cardData)
 	if err != nil {
 		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
 	}
-	salt, iv, encryptedData, err := utils.EncryptData(credentialsBytes, c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.CreateSecret(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.createSecret(ctx, name, cardBytes, metadata, proto.DataType_DATA_TYPE_CARD)
 }
 
 func (c *client) GetCardData(
@@ -494,29 +424,15 @@ func (c *client) GetCardData(
 	name string,
 	version uint64,
 ) (cardData *models.CardData, metadata map[string]string, err error) {
-	if !c.session.LoggedIn() {
-		return nil, nil, fmt.Errorf("Can get credentials only from authorized TUI session")
-	}
-	request := &proto.GetSecretRequest{}
-	request.SetName(name)
-	request.SetVersion(version)
-	request.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
-	resp, err := c.client.GetSecret(
-		ctx,
-		request,
-	)
+	data, metadata, err := c.getSecret(ctx, name, version, proto.DataType_DATA_TYPE_CARD)
 	if err != nil {
-		return nil, nil, err
-	}
-	data, err := utils.DecryptData(resp.GetSalt(), resp.GetIv(), resp.GetData(), c.session.Password)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decrypt data: %w", err)
+		return nil, nil, fmt.Errorf("failed to get secret data: %w", err)
 	}
 	err = json.Unmarshal(data, &cardData)
 	if err != nil {
 		return nil, nil, fmt.Errorf("wrong data format: %w", err)
 	}
-	return cardData, resp.GetMetadata(), nil
+	return cardData, metadata, nil
 }
 
 func (c *client) UpdateCardData(
@@ -524,30 +440,11 @@ func (c *client) UpdateCardData(
 	name string,
 	cardData *models.CardData,
 ) error {
-	if !c.session.LoggedIn() {
-		return fmt.Errorf("Can create credentials only from authorized TUI session")
-	}
-	request := &proto.UpdateSecretDataRequest{}
-	request.SetName(name)
-	credentialsBytes, err := json.Marshal(cardData)
+	cardBytes, err := json.Marshal(cardData)
 	if err != nil {
 		return fmt.Errorf("failed to convert json struct to bytes: %w", err)
 	}
-	salt, iv, encryptedData, err := utils.EncryptData(credentialsBytes, c.session.Password)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt data: %w", err)
-	}
-	request.SetSalt(salt)
-	request.SetIv(iv)
-	request.SetData(encryptedData)
-	_, err = c.client.UpdateSecretData(
-		ctx,
-		request,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.updateSecret(ctx, name, cardBytes)
 }
 
 // ========== mutual ==========
@@ -563,7 +460,17 @@ func (c *client) RollbackSecret(
 		request,
 	)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return fmt.Errorf("%w: secret '%s' not found", ErrSecretNotFound, name)
+			case codes.FailedPrecondition, codes.InvalidArgument:
+				return ErrSecretRollbackNotPossible
+			default:
+				return fmt.Errorf("failed to rollback secret: %w", err)
+			}
+		}
+		return fmt.Errorf("failed to rollback secret: %w", err)
 	}
 	return nil
 }
@@ -579,7 +486,15 @@ func (c *client) DeleteSecret(
 		request,
 	)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return fmt.Errorf("%w: secret '%s' not found", ErrSecretNotFound, name)
+			default:
+				return fmt.Errorf("failed to delete secret: %w", err)
+			}
+		}
+		return fmt.Errorf("failed to delete secret: %w", err)
 	}
 	return nil
 }
@@ -597,7 +512,17 @@ func (c *client) UpdateMetadata(
 		request,
 	)
 	if err != nil {
-		return err
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return fmt.Errorf("%w: secret '%s' not found", ErrSecretNotFound, name)
+			case codes.InvalidArgument:
+				return fmt.Errorf("invalid metadata: %s", st.Message())
+			default:
+				return fmt.Errorf("failed to update metadata: %w", err)
+			}
+		}
+		return fmt.Errorf("failed to update metadata: %w", err)
 	}
 	return nil
 }

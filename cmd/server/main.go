@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,17 +20,22 @@ import (
 )
 
 func main() {
-	configData := config.LoadConfig()
-	err := logger.Initialize(configData.LoggerLevel)
+	configData, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Unable to initialize logger: %v", err)
+		logger.Log.Error("failed to initialize settings", slog.Any("error", err))
+		os.Exit(1)
+	}
+	err = logger.Initialize(configData.LoggerLevel)
+	if err != nil {
+		logger.Log.Error("failed to initialize logger", slog.Any("error", err))
+		os.Exit(1)
 	}
 	store, err := repository.NewDBStorage(configData.DatabaseURI, configData.ForceMigrations)
 	if err != nil {
 		logger.Log.Error("Unable to create storage", slog.Any("error", err))
 		os.Exit(1)
 	}
-	service := service.NewService(store, configData.CookieSecret, configData.AccessTokenLifespan, configData.RefreshTokenLifespan)
+	service := service.NewService(store, configData.CookieSecret, configData.AccessTokenLifespan.Duration(), configData.RefreshTokenLifespan.Duration())
 	grpcHandler := handlers.NewGRPCHandler(service)
 
 	// GRPC-server
@@ -43,7 +47,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	grpcSrv := server.NewServer(configData.RunAddr, grpcHandler, configData.ReadTimeout, configData.WriteTimeout, configData.CookieSecret, tlsConfig)
+	grpcSrv := server.NewServer(configData.RunAddr, grpcHandler, configData.ReadTimeout.Duration(), configData.WriteTimeout.Duration(), configData.CookieSecret, tlsConfig)
 
 	// run gRPC in separate goroutine
 	grpcErr := make(chan error, 1)

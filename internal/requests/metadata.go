@@ -69,5 +69,10 @@ func SetAccessTokenToMetadata(
 	if accessToken == "" {
 		return ctx, ErrEmptyToken
 	}
-	return metadata.AppendToOutgoingContext(ctx, authMetadataName, fmt.Sprintf("%s %s", bearerPrefix, accessToken)), nil
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.New(nil)
+	}
+	md.Set("authorization", fmt.Sprintf("%s %s", bearerPrefix, accessToken))
+	return metadata.NewOutgoingContext(ctx, md), nil
 }

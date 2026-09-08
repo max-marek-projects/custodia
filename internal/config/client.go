@@ -1,26 +1,50 @@
-// Package config handles client configuration from configuration file.
+// Package config provides client configuration management.
+// It reads configuration from a JSON file located in the user's config directory.
 package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/max-marek-projects/custodia/internal/logger"
+	"github.com/max-marek-projects/custodia/internal/models"
 )
 
-// ClientConf contains whole client configuration
+var configEnvName = "CUSTODIA_CONFIG_DIR"
+
+// ClientConf holds the client configuration parameters.
 type ClientConf struct {
-	ConfigFolder   string
-	ConfigFilename string
-	ServerAddr     string        `json:"server_addr"`
-	TokenFilename  string        `json:"tokens_filename"`
-	RequestTimeout time.Duration `json:"requests_timeout"`
-	SessionTTL     time.Duration `json:"session_ttl"`
-	LoggerLevel    string        `json:"logger_level"`
-	SecretsTTL     time.Duration `json:"secrets_ttl"`
+	// ConfigFolder is the name of the application's configuration folder.
+	ConfigFolder string `json:"-"`
+	// ConfigFilename is the name of the configuration file.
+	ConfigFilename string `json:"-"`
+
+	// ServerAddr is the address of the server (e.g., "localhost:3200").
+	ServerAddr string `json:"server_addr"`
+	// TokenFilename is the name of the file where tokens are stored.
+	TokenFilename string `json:"tokens_filename"`
+	// RequestTimeout is the timeout for HTTP requests to the server.
+	RequestTimeout models.Duration `json:"requests_timeout"`
+	// SessionTTL is the duration for which the session is valid.
+	SessionTTL models.Duration `json:"session_ttl"`
+	// LoggerLevel is the logging level (DEBUG, INFO, WARN, ERROR).
+	LoggerLevel logger.Level `json:"logger_level"`
+	// SecretsTTL is the duration for which secrets are cached locally.
+	SecretsTTL models.Duration `json:"secrets_ttl"`
 }
 
-// NewClientConf returns all client configuration including configuration from file
+// NewClientConf creates a new ClientConf with default values,
+// then overrides them with values from the configuration file if it exists.
+// The configuration file is expected to be in the user's configuration directory
+// under the folder "custodia" with the name "config.json".
+//
+// Returns:
+//   - *ClientConf: populated configuration.
+//   - error: non-nil if the config directory cannot be created,
+//     the config file cannot be read, or JSON unmarshaling fails.
 func NewClientConf() (*ClientConf, error) {
 	configuration := &ClientConf{
 		// constants
@@ -29,30 +53,42 @@ func NewClientConf() (*ClientConf, error) {
 		// can be overwritten by config file
 		ServerAddr:     "localhost:3200",
 		TokenFilename:  "tokens.json",
-		RequestTimeout: 10 * time.Second,
-		SessionTTL:     15 * time.Minute,
-		LoggerLevel:    "INFO",
-		SecretsTTL:     30 * time.Second,
+		RequestTimeout: models.Duration(10 * time.Second),
+		SessionTTL:     models.Duration(15 * time.Minute),
+		LoggerLevel:    logger.LevelInfo,
+		SecretsTTL:     models.Duration(30 * time.Second),
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return nil, err
+	// Determine the configuration directory.
+	var appConfigDir string
+	if envDir := os.Getenv(configEnvName); envDir != "" {
+		appConfigDir = envDir
+	} else {
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user config dir: %w", err)
+		}
+		appConfigDir = filepath.Join(configDir, configuration.ConfigFolder)
 	}
-	appConfigDir := filepath.Join(configDir, configuration.ConfigFolder)
-	err = os.MkdirAll(appConfigDir, 0700)
-	if err != nil {
-		return nil, err
+
+	// create configuration directory
+	if err := os.MkdirAll(appConfigDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}
-	path := filepath.Join(appConfigDir, configuration.ConfigFilename)
-	data, err := os.ReadFile(path)
+
+	configPath := filepath.Join(appConfigDir, configuration.ConfigFilename)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			logger.Log.Info("config file not found, using defaults", "path", configPath)
 			return configuration, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	if err := json.Unmarshal(data, &configuration); err != nil {
-		return nil, err
+
+	if err := json.Unmarshal(data, configuration); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
+
+	logger.Log.Info("configuration loaded", "path", configPath)
 	return configuration, nil
 }

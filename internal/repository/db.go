@@ -65,7 +65,7 @@ func NewDBStorage(dbURL string, forceMigrations bool) (*dbStorage, error) {
 	}
 	err = dbs.runMigrations()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create DB storage: %w", err)
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 	return dbs, nil
 }
@@ -106,6 +106,12 @@ func (dbs *dbStorage) runMigrations() error {
 //
 // Returns the new user ID or error (ErrAlreadyInStorage if login exists).
 func (dbs *dbStorage) RegisterUser(ctx context.Context, userData models.UserData) (int64, error) {
+	if userData.Login == "" {
+		return 0, fmt.Errorf("empty login received: %w", ErrInvalidArgument)
+	}
+	if len(userData.PasswordHash) == 0 {
+		return 0, fmt.Errorf("empty password hash received: %w", ErrInvalidArgument)
+	}
 	var userID int64
 	query := `--sql
         INSERT INTO users (username, password_hash)
@@ -126,6 +132,9 @@ func (dbs *dbStorage) RegisterUser(ctx context.Context, userData models.UserData
 // CheckUser retrieves user ID and hashed password by login.
 // Returns ErrUserNotFound if the login does not exist.
 func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, []byte, error) {
+	if username == "" {
+		return 0, nil, fmt.Errorf("empty username received: %w", ErrInvalidArgument)
+	}
 	var userID int64
 	var hashedPassword []byte
 	query := `--sql
@@ -146,26 +155,69 @@ func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, []
 
 // SaveRefreshToken saves refresh token to storage
 func (dbs *dbStorage) SaveRefreshToken(ctx context.Context, userID int64, tokenHash []byte, deviceName string, ttl time.Duration) error {
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if len(tokenHash) == 0 {
+		return fmt.Errorf("empty token hash: %w", ErrInvalidArgument)
+	}
+	if deviceName == "" {
+		return fmt.Errorf("empty device name: %w", ErrInvalidArgument)
+	}
+	if ttl == 0 {
+		return fmt.Errorf("empty duration: %w", ErrInvalidArgument)
+	}
 	// create transaction
 	tx, err := dbs.storage.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	err = dbs.RevokeToken(ctx, userID, deviceName)
-	if err != nil {
-		return err
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
 	}
+	if deviceName == "" {
+		return fmt.Errorf("empty device name: %w", ErrInvalidArgument)
+	}
+	// mark token as revoked
+	_, err = tx.ExecContext(ctx, `
+        UPDATE tokens
+        SET revoked_at = NOW()
+        WHERE user_id = $1 AND device_name = $2 AND revoked_at IS NULL
+    `, userID, deviceName)
+	if err != nil {
+		return fmt.Errorf("failed to mark token as revoked: %w", err)
+	}
+	// create new token
 	expiresAt := time.Now().Add(ttl)
-	_, err = dbs.storage.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
         INSERT INTO tokens (user_id, token_hash, expires_at, device_name)
         VALUES ($1, $2, $3, $4)
     `, userID, tokenHash, expiresAt, deviceName)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to add new refresh token: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }
 
 // CheckRefreshToken checks refresh token
 func (dbs *dbStorage) CheckRefreshToken(ctx context.Context, userID int64, tokenHash []byte, deviceName string) error {
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if len(tokenHash) == 0 {
+		return fmt.Errorf("empty token hash: %w", ErrInvalidArgument)
+	}
+	if deviceName == "" {
+		return fmt.Errorf("empty device name: %w", ErrInvalidArgument)
+	}
+	// check refresh token
 	var unusedVar int
 	err := dbs.storage.QueryRowContext(ctx, `
         SELECT 1
@@ -176,34 +228,84 @@ func (dbs *dbStorage) CheckRefreshToken(ctx context.Context, userID int64, token
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrRefreshTokenExpiredOrInvalid
 		}
-		return err
+		return fmt.Errorf("failed to get info about refresh token: %w", err)
 	}
 	return nil
 }
 
 // RevokeToken revokes refresh token in storage based on user id and device name
 func (dbs *dbStorage) RevokeToken(ctx context.Context, userID int64, deviceName string) error {
-	_, err := dbs.storage.ExecContext(ctx, `
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if deviceName == "" {
+		return fmt.Errorf("empty device name: %w", ErrInvalidArgument)
+	}
+	// mark token as revoked
+	result, err := dbs.storage.ExecContext(ctx, `
         UPDATE tokens
         SET revoked_at = NOW()
         WHERE user_id = $1 AND device_name = $2 AND revoked_at IS NULL
     `, userID, deviceName)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to mark token as revoked: %w", err)
+	}
+	revokedTokensAmount, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get revoked tokens amount: %w", err)
+	}
+	if revokedTokensAmount == 0 {
+		return ErrNoChanges
+	}
+	return nil
 }
 
 // RevokeToken revokes all refresh tokens in storage based on user id
 func (dbs *dbStorage) RevokeAllTokens(ctx context.Context, userID int64) error {
-	_, err := dbs.storage.ExecContext(ctx, `
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	// revoke all tokens
+	result, err := dbs.storage.ExecContext(ctx, `
         UPDATE tokens
         SET revoked_at = NOW()
         WHERE user_id = $1 AND revoked_at IS NULL
     `, userID)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to mark all tokens as revoked: %w", err)
+	}
+	revokedTokensAmount, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get revoked tokens amount: %w", err)
+	}
+	if revokedTokensAmount == 0 {
+		return ErrNoChanges
+	}
+	return nil
 }
 
 // ========== SECRETS ==========
 
 func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data, salt, iv []byte, metadata map[string]string) error {
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if name == "" {
+		return fmt.Errorf("empty secret name: %w", ErrInvalidArgument)
+	}
+	if len(data) == 0 {
+		return fmt.Errorf("empty data: %w", ErrInvalidArgument)
+	}
+	if len(salt) == 0 {
+		return fmt.Errorf("empty salt: %w", ErrInvalidArgument)
+	}
+	if len(iv) == 0 {
+		return fmt.Errorf("empty iv: %w", ErrInvalidArgument)
+	}
+	// create secret
 	rawMetadata, err := json.Marshal(metadata)
 	if err != nil {
 		return fmt.Errorf("failed to convert metadata to bytes: %w", err)
@@ -211,12 +313,20 @@ func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType m
 	query := `
         INSERT INTO secrets (user_id, type, name, data, salt, iv, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (user_id, name, version) DO NOTHING
     `
-	_, err = dbs.storage.ExecContext(ctx, query,
+	result, err := dbs.storage.ExecContext(ctx, query,
 		userID, dataType, name, data, salt, iv, rawMetadata,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrAlreadyInStorage
 	}
 	return nil
 }
@@ -245,6 +355,14 @@ func (dbs *dbStorage) GetSecret(
 	name string,
 	version uint64,
 ) (data, salt, iv []byte, metadata map[string]string, err error) {
+	// check arguments
+	if userID == 0 {
+		return nil, nil, nil, nil, fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if name == "" {
+		return nil, nil, nil, nil, fmt.Errorf("empty secret name: %w", ErrInvalidArgument)
+	}
+	// get secret
 	var rawMetadata []byte
 	query := `
 		SELECT data, salt, iv, metadata FROM secrets
@@ -291,6 +409,13 @@ func (dbs *dbStorage) RollbackSecret(
 	userID int64,
 	name string,
 ) error {
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if name == "" {
+		return fmt.Errorf("empty secret name: %w", ErrInvalidArgument)
+	}
 	// Find the maximum version among active secrets.
 	tx, err := dbs.storage.BeginTx(ctx, nil)
 	if err != nil {
@@ -303,8 +428,11 @@ func (dbs *dbStorage) RollbackSecret(
 		FROM secrets
 		WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL
 	`
-	err = dbs.storage.QueryRowContext(ctx, queryMax, userID, name).Scan(&maxVersion)
+	err = tx.QueryRowContext(ctx, queryMax, userID, name).Scan(&maxVersion)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrSecretNotFound
+		}
 		return fmt.Errorf("failed to get max version: %w", err)
 	}
 	if maxVersion < 2 {
@@ -317,7 +445,7 @@ func (dbs *dbStorage) RollbackSecret(
 		SET deleted_at = NOW()
 		WHERE user_id = $1 AND name = $2 AND version = $3 AND deleted_at IS NULL
 	`
-	result, err := dbs.storage.ExecContext(ctx, queryUpdate, userID, name, maxVersion)
+	result, err := tx.ExecContext(ctx, queryUpdate, userID, name, maxVersion)
 	if err != nil {
 		return fmt.Errorf("failed to rollback secret: %w", err)
 	}
@@ -339,6 +467,13 @@ func (dbs *dbStorage) DeleteSecret(
 	userID int64,
 	name string,
 ) error {
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if name == "" {
+		return fmt.Errorf("empty secret name: %w", ErrInvalidArgument)
+	}
 	// Soft-delete all versions version.
 	queryUpdate := `
 		UPDATE secrets
@@ -360,8 +495,20 @@ func (dbs *dbStorage) DeleteSecret(
 }
 
 func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name string, data, salt, iv []byte, metadata map[string]string) error {
+	// check arguments
+	if userID == 0 {
+		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+	if name == "" {
+		return fmt.Errorf("empty secret name: %w", ErrInvalidArgument)
+	}
 	if data == nil && metadata == nil {
-		return fmt.Errorf("missing data to update")
+		return fmt.Errorf("missing data to update: %w", ErrInvalidArgument)
+	}
+	if data != nil {
+		if salt == nil || iv == nil {
+			return fmt.Errorf("to update data, both salt and iv must be provided: %w", ErrInvalidArgument)
+		}
 	}
 	// start transaction
 	tx, err := dbs.storage.BeginTx(ctx, nil)
@@ -407,9 +554,6 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
 	newIV := oldIV
 	newMetadata := oldMetadata
 	if data != nil {
-		if salt == nil || iv == nil {
-			return fmt.Errorf("to update data, both salt and iv must be provided")
-		}
 		newData = data
 		newSalt = salt
 		newIV = iv

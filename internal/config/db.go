@@ -1,23 +1,38 @@
-// Package db provides database configuration.
+// Package config provides database configuration structures and constructors.
 package config
 
 import "time"
 
-// DBConf holds database connection configuration (URL, pool limits, migrations path).
+// DBConf holds database connection settings, including the connection URL,
+// migration parameters, and connection pool limits.
 type DBConf struct {
-	URL             string        // database connection url
-	ForceMigrations bool          // force database migrations
-	MaxOpenConns    int           // max amount of opened database connections
-	MaxIdleConns    int           // max amount of idle database connections
-	ConnMaxLifetime time.Duration // max database connection lifetime
-	MigrationsPath  string        // path to folder with migrations files
+	// URL is the database connection string (e.g., postgres://user:pass@host/db).
+	URL string
+	// ForceMigrations forces migrations to run even if the schema is dirty.
+	ForceMigrations bool
+	// MaxOpenConns is the maximum number of open connections to the database.
+	MaxOpenConns int
+	// MaxIdleConns is the maximum number of idle connections in the pool.
+	MaxIdleConns int
+	// ConnMaxLifetime is the maximum amount of time a connection may be reused.
+	ConnMaxLifetime time.Duration
+	// MigrationsPath is the filesystem path to the directory containing migration files.
+	MigrationsPath string
 }
 
-// NewDBConf creates a DBConf with default connection pool settings and the given database URL.
-// Parameters:
-//   - dbURL: database connection string.
+// NewDBConf creates a new DBConf with the given database URL and migration flag.
+// It applies sensible defaults for connection pool settings:
+//   - MaxOpenConns: 10
+//   - MaxIdleConns: 5
+//   - ConnMaxLifetime: 5 minutes
+//   - MigrationsPath: "./migrations"
 //
-// Returns a pointer to the initialized DBConf.
+// Parameters:
+//   - dbURL: the database connection string (required).
+//   - forceMigrations: whether to force migrations in case of dirty schema.
+//
+// Returns:
+//   - *DBConf: a pointer to the initialized configuration.
 func NewDBConf(dbURL string, forceMigrations bool) *DBConf {
 	return &DBConf{
 		URL:             dbURL,
