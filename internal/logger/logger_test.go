@@ -91,16 +91,13 @@ func TestInitialize(t *testing.T) {
 				assert.Equal(t, Log, slog.Default())
 				// Check that the handler uses JSON and correct level.
 				assert.IsType(t, &slog.JSONHandler{}, Log.Handler())
-				// We can't easily check level, but we trust the mapping.
 			}
 		})
 	}
 }
 
 func TestInitNoopLogger(t *testing.T) {
-	// The package init already sets a no‑op logger. We can verify that Log is not nil.
 	assert.NotNil(t, Log)
-	// We can also check that the handler discards output – but hard to test.
 }
 
 func TestFlagIntegration(t *testing.T) {

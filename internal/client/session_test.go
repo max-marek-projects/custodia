@@ -36,7 +36,7 @@ func TestSession_LoggedIn(t *testing.T) {
 			name:      "expired at exact now (should be false)",
 			password:  []byte("secret"),
 			expiresAt: time.Now(),
-			want:      false, // time.Now().After(expiresAt) is false if equal, so session would be considered valid? Actually after is strict, so if equal, not after, so returns true. But we want to treat expiration at now as invalid? Typically, if expiresAt == now, it's already expired. We need to decide. The current logic uses After, so expiresAt equal now is NOT expired, which might be okay. But we can test both.
+			want:      false,
 		},
 	}
 

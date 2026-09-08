@@ -8,7 +8,6 @@ package proto
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -251,7 +250,7 @@ func RegisterCustodiaServer(s grpc.ServiceRegistrar, srv CustodiaServer) {
 	s.RegisterService(&Custodia_ServiceDesc, srv)
 }
 
-func _Custodia_RegisterUser_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_RegisterUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -263,13 +262,13 @@ func _Custodia_RegisterUser_Handler(srv any, ctx context.Context, dec func(any) 
 		Server:     srv,
 		FullMethod: Custodia_RegisterUser_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).RegisterUser(ctx, req.(*LoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_LoginUser_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_LoginUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -281,13 +280,13 @@ func _Custodia_LoginUser_Handler(srv any, ctx context.Context, dec func(any) err
 		Server:     srv,
 		FullMethod: Custodia_LoginUser_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).LoginUser(ctx, req.(*LoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_Refresh_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_Refresh_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RefreshRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -299,13 +298,13 @@ func _Custodia_Refresh_Handler(srv any, ctx context.Context, dec func(any) error
 		Server:     srv,
 		FullMethod: Custodia_Refresh_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).Refresh(ctx, req.(*RefreshRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_LogoutDevice_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_LogoutDevice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LogoutDeviceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -317,13 +316,13 @@ func _Custodia_LogoutDevice_Handler(srv any, ctx context.Context, dec func(any) 
 		Server:     srv,
 		FullMethod: Custodia_LogoutDevice_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).LogoutDevice(ctx, req.(*LogoutDeviceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_LogoutAllDevices_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_LogoutAllDevices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LogoutAllDevicesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -335,13 +334,13 @@ func _Custodia_LogoutAllDevices_Handler(srv any, ctx context.Context, dec func(a
 		Server:     srv,
 		FullMethod: Custodia_LogoutAllDevices_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).LogoutAllDevices(ctx, req.(*LogoutAllDevicesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_CreateSecret_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_CreateSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateSecretRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -353,13 +352,13 @@ func _Custodia_CreateSecret_Handler(srv any, ctx context.Context, dec func(any) 
 		Server:     srv,
 		FullMethod: Custodia_CreateSecret_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).CreateSecret(ctx, req.(*CreateSecretRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_GetSecret_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_GetSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetSecretRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -371,13 +370,13 @@ func _Custodia_GetSecret_Handler(srv any, ctx context.Context, dec func(any) err
 		Server:     srv,
 		FullMethod: Custodia_GetSecret_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).GetSecret(ctx, req.(*GetSecretRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_RollbackSecret_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_RollbackSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RollbackSecretRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -389,13 +388,13 @@ func _Custodia_RollbackSecret_Handler(srv any, ctx context.Context, dec func(any
 		Server:     srv,
 		FullMethod: Custodia_RollbackSecret_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).RollbackSecret(ctx, req.(*RollbackSecretRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_DeleteSecret_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_DeleteSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteSecretRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -407,13 +406,13 @@ func _Custodia_DeleteSecret_Handler(srv any, ctx context.Context, dec func(any) 
 		Server:     srv,
 		FullMethod: Custodia_DeleteSecret_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).DeleteSecret(ctx, req.(*DeleteSecretRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_UpdateSecretData_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_UpdateSecretData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateSecretDataRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -425,13 +424,13 @@ func _Custodia_UpdateSecretData_Handler(srv any, ctx context.Context, dec func(a
 		Server:     srv,
 		FullMethod: Custodia_UpdateSecretData_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).UpdateSecretData(ctx, req.(*UpdateSecretDataRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Custodia_UpdateSecretMetadata_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Custodia_UpdateSecretMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateSecretMetadataRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -443,7 +442,7 @@ func _Custodia_UpdateSecretMetadata_Handler(srv any, ctx context.Context, dec fu
 		Server:     srv,
 		FullMethod: Custodia_UpdateSecretMetadata_FullMethodName,
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CustodiaServer).UpdateSecretMetadata(ctx, req.(*UpdateSecretMetadataRequest))
 	}
 	return interceptor(ctx, in, info, handler)

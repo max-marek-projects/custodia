@@ -3,17 +3,13 @@ package server
 import (
 	"context"
 	"errors"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/max-marek-projects/custodia/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 const testAddr = ":0" // let the system pick a free port
@@ -67,41 +63,4 @@ func TestServer_ListenAndServe_Shutdown(t *testing.T) {
 		t.Fatal("server did not stop in time")
 	}
 	mockService.AssertExpectations(t)
-}
-
-// TestServer_withBufconn tests the server using bufconn (no real TCP).
-func TestServer_withBufconn(t *testing.T) {
-	handler := handlers.NewGRPCHandler(NewMockService(t))
-	svr := NewServer("", handler, 0, 0, "secret", nil)
-
-	// Create a bufconn listener.
-	listener := bufconn.Listen(1024 * 1024)
-
-	// Start server in goroutine.
-	go func() {
-		if err := svr.Serve(listener); err != nil {
-			// Ignore expected errors from GracefulStop
-		}
-	}()
-	defer svr.GracefulStop()
-
-	// Create a client connection to the bufconn.
-	conn, err := grpc.NewClient(
-		"bufconn",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) {
-			return listener.Dial()
-		}),
-	)
-	require.NoError(t, err)
-	defer conn.Close()
-
-	// Here we would normally test a real RPC, but since the handler is empty,
-	// we just verify the connection works (e.g., context).
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	// We can check that the connection is ready.
-	ok := conn.WaitForStateChange(ctx, conn.GetState())
-	// It may or may not change state; we just ensure no panic.
-	assert.True(t, ok || true) // placeholder
 }

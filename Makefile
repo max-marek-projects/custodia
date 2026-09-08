@@ -26,7 +26,6 @@ proto:
  		--go_opt=module=github.com/max-marek-projects/custodia \
 		--go-grpc_out=. \
  		--go-grpc_opt=module=github.com/max-marek-projects/custodia \
-		--openapiv2_out=pkg/openapi --openapiv2_opt=module=github.com/max-marek-projects/custodia \
 		api/custodia.proto
 
 mocks: # generate all mocks
