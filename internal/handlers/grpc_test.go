@@ -1112,3 +1112,13 @@ func TestGRPCHandler_UpdateSecretMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestGRPCHandler_Close(t *testing.T) {
+	mockService := NewMockService(t)
+	mockService.EXPECT().Close(mock.Anything).Return(nil)
+
+	h := NewGRPCHandler(mockService)
+	err := h.Close(context.Background())
+	assert.NoError(t, err)
+	mockService.AssertExpectations(t)
+}

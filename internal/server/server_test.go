@@ -2,12 +2,14 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/max-marek-projects/custodia/internal/handlers"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -39,31 +41,32 @@ func TestNewServer(t *testing.T) {
 
 // TestServer_ListenAndServe_Shutdown tests lifecycle with a real listener.
 func TestServer_ListenAndServe_Shutdown(t *testing.T) {
-	handler := handlers.NewGRPCHandler(NewMockService(t))
+	mockService := NewMockService(t)
+	mockService.EXPECT().Close(mock.Anything).Return(nil)
+	handler := handlers.NewGRPCHandler(mockService)
 	svr := NewServer("127.0.0.1:0", handler, 0, 0, "secret", nil)
 
-	// Use a goroutine to start the server.
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- svr.ListenAndServe()
 	}()
 
-	// Give the server time to start.
 	time.Sleep(50 * time.Millisecond)
 
-	// Shutdown gracefully.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	err := svr.Shutdown(ctx)
 	assert.NoError(t, err)
 
-	// Wait for server to finish.
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err)
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			assert.NoError(t, err)
+		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("server did not stop in time")
 	}
+	mockService.AssertExpectations(t)
 }
 
 // TestServer_withBufconn tests the server using bufconn (no real TCP).

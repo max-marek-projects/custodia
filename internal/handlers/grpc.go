@@ -32,6 +32,12 @@ func NewGRPCHandler(srv service.Service) *GRPCHandler {
 	return &GRPCHandler{service: srv}
 }
 
+// Close closes the underlying service.
+// It is called during server shutdown.
+func (h *GRPCHandler) Close(ctx context.Context) error {
+	return h.service.Close(ctx)
+}
+
 // ---------- Auth ----------
 
 // RegisterUser handles user registration.

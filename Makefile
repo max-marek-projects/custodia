@@ -1,11 +1,21 @@
 # ========== BUILD / RUN ==========
 
+VERSION := $(shell git describe --tags --always 2>/dev/null || echo "")
+DATE    := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+COMMIT  := $(shell git rev-parse HEAD 2>/dev/null || echo "")
+
 server:  # build and run binary
-	go build -o bin/server ./cmd/server
+	go build -ldflags "-X main.buildVersion=$(VERSION) \
+                   -X main.buildDate=$(DATE) \
+                   -X main.buildCommit=$(COMMIT)" \
+                   -o bin/server ./cmd/server
 	./bin/server
 
 client:
-	go build -o bin/custodia ./cmd/custodia
+	go build -ldflags "-X main.buildVersion=$(VERSION) \
+                   -X main.buildDate=$(DATE) \
+                   -X main.buildCommit=$(COMMIT)" \
+                   -o bin/custodia ./cmd/custodia
 	go install ./cmd/custodia
 
 # ========== GENERATE ==========
@@ -16,6 +26,7 @@ proto:
  		--go_opt=module=github.com/max-marek-projects/custodia \
 		--go-grpc_out=. \
  		--go-grpc_opt=module=github.com/max-marek-projects/custodia \
+		--openapiv2_out=pkg/openapi --openapiv2_opt=module=github.com/max-marek-projects/custodia \
 		api/custodia.proto
 
 mocks: # generate all mocks
@@ -26,6 +37,10 @@ mocks: # generate all mocks
 lint:
 	gofmt -w .
 	goimports -w .
+
+static-lint:
+	go run ./cmd/staticlint/main.go ./cmd/...
+	go run ./cmd/staticlint/main.go ./internal/...
 
 test:  # run tests
 	go test -coverprofile=coverage.out ./internal/... ./cmd/...

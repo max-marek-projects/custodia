@@ -1,56 +1,62 @@
+// Package main provides the CLI commands for the Custodia password manager.
+// This file implements the "create text" subcommand for storing arbitrary text data.
 package main
 
 import (
-	"context"
 	"fmt"
-	"syscall"
 
 	"github.com/max-marek-projects/custodia/internal/client"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
+// addSecretTextCmd represents the "create text" command.
+// It collects a secret name, metadata, and text data from the user,
+// then encrypts and stores the text on the server.
 var addSecretTextCmd = &cobra.Command{
 	Use:   "text",
 	Short: "add new secret text data to custodia server",
+	// RunE executes the command logic.
+	// It prompts for missing flags, reads text securely, creates a client,
+	// and calls CreateSecretText.
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name, err := cmd.Flags().GetString("name")
+		// Read the secret name from flag or stdin.
+		name, err := client.ReadStringValue(cmd, "name")
 		if err != nil {
-			return fmt.Errorf("failed to get name value from flag: %w", err)
+			return err
 		}
-		rawMetadata, err := cmd.Flags().GetString("meta")
+		// Read metadata (JSON) from flag or stdin.
+		metadata, err := client.ReadMapValue(cmd, "metadata")
 		if err != nil {
-			return fmt.Errorf("failed to get metadata from flag: %w", err)
+			return err
 		}
-		if name == "" {
-			fmt.Print("Please type cred name: ")
-			fmt.Scanln(&name)
-		}
-		fmt.Print("Please type secret data: ")
-		secretData, err := term.ReadPassword(int(syscall.Stdin))
+		// Read the text data securely (hidden input).
+		secretData, err := client.ReadSecret("secret data")
 		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
+			return err
 		}
-		fmt.Println()
-		metadata, err := parseMeta(rawMetadata)
-		if err != nil {
-			return fmt.Errorf("failed to parse metadata: %w", err)
-		}
-		cli, _, err := client.NewClient(session)
+		// Create a new client and a context with timeout.
+		cli, _, ctx, cancel, err := client.NewClient(session)
+		defer cancel()
 		if err != nil {
 			return fmt.Errorf("failed to create client: %w", err)
 		}
 		defer cli.Close()
-		if err := cli.CreateSecretText(context.Background(), name, string(secretData), metadata); err != nil {
-			return fmt.Errorf("failed to login: %w", err)
+		// Send the encrypted text to the server.
+		if err := cli.CreateSecretText(ctx, name, string(secretData), metadata); err != nil {
+			return fmt.Errorf("failed to create secret text: %w", err)
 		}
-		fmt.Printf("created cred `%s` successfully\n", name)
+		fmt.Printf("created secret text data `%s` successfully\n", name)
 		return nil
 	},
 }
 
+// init registers the command with the parent "create" command
+// and defines its command-line flags.
 func init() {
+	// Flags:
+	//   -n, --name: secret name (required, can be interactive)
+	//   -m, --metadata: JSON metadata (default: "{}")
 	addSecretTextCmd.Flags().StringP("name", "n", "", "secret data name")
-	addSecretTextCmd.Flags().StringP("meta", "m", "{}", "secret data metadata")
+	addSecretTextCmd.Flags().StringP("metadata", "m", "{}", "secret data metadata")
 	createCmd.AddCommand(addSecretTextCmd)
 }

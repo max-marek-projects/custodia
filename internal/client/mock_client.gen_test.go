@@ -27,11 +27,11 @@ func (_m *MockClient) EXPECT() *MockClient_Expecter {
 
 // CreateSecret provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) CreateSecret(ctx context.Context, in *proto.CreateSecretRequest, opts ...grpc.CallOption) (*proto.CreateSecretResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -71,9 +71,9 @@ type MockClient_CreateSecret_Call struct {
 //   - ctx context.Context
 //   - in *proto.CreateSecretRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) CreateSecret(ctx any, in any, opts ...any) *MockClient_CreateSecret_Call {
+func (_e *MockClient_Expecter) CreateSecret(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_CreateSecret_Call {
 	return &MockClient_CreateSecret_Call{Call: _e.mock.On("CreateSecret",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_CreateSecret_Call) Run(run func(ctx context.Context, in *proto.CreateSecretRequest, opts ...grpc.CallOption)) *MockClient_CreateSecret_Call {
@@ -101,11 +101,11 @@ func (_c *MockClient_CreateSecret_Call) RunAndReturn(run func(context.Context, *
 
 // DeleteSecret provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) DeleteSecret(ctx context.Context, in *proto.DeleteSecretRequest, opts ...grpc.CallOption) (*proto.DeleteSecretResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -145,9 +145,9 @@ type MockClient_DeleteSecret_Call struct {
 //   - ctx context.Context
 //   - in *proto.DeleteSecretRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) DeleteSecret(ctx any, in any, opts ...any) *MockClient_DeleteSecret_Call {
+func (_e *MockClient_Expecter) DeleteSecret(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_DeleteSecret_Call {
 	return &MockClient_DeleteSecret_Call{Call: _e.mock.On("DeleteSecret",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_DeleteSecret_Call) Run(run func(ctx context.Context, in *proto.DeleteSecretRequest, opts ...grpc.CallOption)) *MockClient_DeleteSecret_Call {
@@ -175,11 +175,11 @@ func (_c *MockClient_DeleteSecret_Call) RunAndReturn(run func(context.Context, *
 
 // GetSecret provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) GetSecret(ctx context.Context, in *proto.GetSecretRequest, opts ...grpc.CallOption) (*proto.GetSecretResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -219,9 +219,9 @@ type MockClient_GetSecret_Call struct {
 //   - ctx context.Context
 //   - in *proto.GetSecretRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) GetSecret(ctx any, in any, opts ...any) *MockClient_GetSecret_Call {
+func (_e *MockClient_Expecter) GetSecret(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_GetSecret_Call {
 	return &MockClient_GetSecret_Call{Call: _e.mock.On("GetSecret",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_GetSecret_Call) Run(run func(ctx context.Context, in *proto.GetSecretRequest, opts ...grpc.CallOption)) *MockClient_GetSecret_Call {
@@ -249,11 +249,11 @@ func (_c *MockClient_GetSecret_Call) RunAndReturn(run func(context.Context, *pro
 
 // LoginUser provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) LoginUser(ctx context.Context, in *proto.LoginRequest, opts ...grpc.CallOption) (*proto.LoginResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -293,9 +293,9 @@ type MockClient_LoginUser_Call struct {
 //   - ctx context.Context
 //   - in *proto.LoginRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) LoginUser(ctx any, in any, opts ...any) *MockClient_LoginUser_Call {
+func (_e *MockClient_Expecter) LoginUser(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_LoginUser_Call {
 	return &MockClient_LoginUser_Call{Call: _e.mock.On("LoginUser",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_LoginUser_Call) Run(run func(ctx context.Context, in *proto.LoginRequest, opts ...grpc.CallOption)) *MockClient_LoginUser_Call {
@@ -323,11 +323,11 @@ func (_c *MockClient_LoginUser_Call) RunAndReturn(run func(context.Context, *pro
 
 // LogoutAllDevices provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) LogoutAllDevices(ctx context.Context, in *proto.LogoutAllDevicesRequest, opts ...grpc.CallOption) (*proto.LogoutAllDevicesResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -367,9 +367,9 @@ type MockClient_LogoutAllDevices_Call struct {
 //   - ctx context.Context
 //   - in *proto.LogoutAllDevicesRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) LogoutAllDevices(ctx any, in any, opts ...any) *MockClient_LogoutAllDevices_Call {
+func (_e *MockClient_Expecter) LogoutAllDevices(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_LogoutAllDevices_Call {
 	return &MockClient_LogoutAllDevices_Call{Call: _e.mock.On("LogoutAllDevices",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_LogoutAllDevices_Call) Run(run func(ctx context.Context, in *proto.LogoutAllDevicesRequest, opts ...grpc.CallOption)) *MockClient_LogoutAllDevices_Call {
@@ -397,11 +397,11 @@ func (_c *MockClient_LogoutAllDevices_Call) RunAndReturn(run func(context.Contex
 
 // LogoutDevice provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) LogoutDevice(ctx context.Context, in *proto.LogoutDeviceRequest, opts ...grpc.CallOption) (*proto.LogoutDeviceResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -441,9 +441,9 @@ type MockClient_LogoutDevice_Call struct {
 //   - ctx context.Context
 //   - in *proto.LogoutDeviceRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) LogoutDevice(ctx any, in any, opts ...any) *MockClient_LogoutDevice_Call {
+func (_e *MockClient_Expecter) LogoutDevice(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_LogoutDevice_Call {
 	return &MockClient_LogoutDevice_Call{Call: _e.mock.On("LogoutDevice",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_LogoutDevice_Call) Run(run func(ctx context.Context, in *proto.LogoutDeviceRequest, opts ...grpc.CallOption)) *MockClient_LogoutDevice_Call {
@@ -471,11 +471,11 @@ func (_c *MockClient_LogoutDevice_Call) RunAndReturn(run func(context.Context, *
 
 // Refresh provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) Refresh(ctx context.Context, in *proto.RefreshRequest, opts ...grpc.CallOption) (*proto.RefreshResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -515,9 +515,9 @@ type MockClient_Refresh_Call struct {
 //   - ctx context.Context
 //   - in *proto.RefreshRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) Refresh(ctx any, in any, opts ...any) *MockClient_Refresh_Call {
+func (_e *MockClient_Expecter) Refresh(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_Refresh_Call {
 	return &MockClient_Refresh_Call{Call: _e.mock.On("Refresh",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_Refresh_Call) Run(run func(ctx context.Context, in *proto.RefreshRequest, opts ...grpc.CallOption)) *MockClient_Refresh_Call {
@@ -545,11 +545,11 @@ func (_c *MockClient_Refresh_Call) RunAndReturn(run func(context.Context, *proto
 
 // RegisterUser provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) RegisterUser(ctx context.Context, in *proto.LoginRequest, opts ...grpc.CallOption) (*proto.LoginResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -589,9 +589,9 @@ type MockClient_RegisterUser_Call struct {
 //   - ctx context.Context
 //   - in *proto.LoginRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) RegisterUser(ctx any, in any, opts ...any) *MockClient_RegisterUser_Call {
+func (_e *MockClient_Expecter) RegisterUser(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_RegisterUser_Call {
 	return &MockClient_RegisterUser_Call{Call: _e.mock.On("RegisterUser",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_RegisterUser_Call) Run(run func(ctx context.Context, in *proto.LoginRequest, opts ...grpc.CallOption)) *MockClient_RegisterUser_Call {
@@ -619,11 +619,11 @@ func (_c *MockClient_RegisterUser_Call) RunAndReturn(run func(context.Context, *
 
 // RollbackSecret provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) RollbackSecret(ctx context.Context, in *proto.RollbackSecretRequest, opts ...grpc.CallOption) (*proto.RollbackSecretResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -663,9 +663,9 @@ type MockClient_RollbackSecret_Call struct {
 //   - ctx context.Context
 //   - in *proto.RollbackSecretRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) RollbackSecret(ctx any, in any, opts ...any) *MockClient_RollbackSecret_Call {
+func (_e *MockClient_Expecter) RollbackSecret(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_RollbackSecret_Call {
 	return &MockClient_RollbackSecret_Call{Call: _e.mock.On("RollbackSecret",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_RollbackSecret_Call) Run(run func(ctx context.Context, in *proto.RollbackSecretRequest, opts ...grpc.CallOption)) *MockClient_RollbackSecret_Call {
@@ -693,11 +693,11 @@ func (_c *MockClient_RollbackSecret_Call) RunAndReturn(run func(context.Context,
 
 // UpdateSecretData provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) UpdateSecretData(ctx context.Context, in *proto.UpdateSecretDataRequest, opts ...grpc.CallOption) (*proto.UpdateSecretDataResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -737,9 +737,9 @@ type MockClient_UpdateSecretData_Call struct {
 //   - ctx context.Context
 //   - in *proto.UpdateSecretDataRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) UpdateSecretData(ctx any, in any, opts ...any) *MockClient_UpdateSecretData_Call {
+func (_e *MockClient_Expecter) UpdateSecretData(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_UpdateSecretData_Call {
 	return &MockClient_UpdateSecretData_Call{Call: _e.mock.On("UpdateSecretData",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_UpdateSecretData_Call) Run(run func(ctx context.Context, in *proto.UpdateSecretDataRequest, opts ...grpc.CallOption)) *MockClient_UpdateSecretData_Call {
@@ -767,11 +767,11 @@ func (_c *MockClient_UpdateSecretData_Call) RunAndReturn(run func(context.Contex
 
 // UpdateSecretMetadata provides a mock function with given fields: ctx, in, opts
 func (_m *MockClient) UpdateSecretMetadata(ctx context.Context, in *proto.UpdateSecretMetadataRequest, opts ...grpc.CallOption) (*proto.UpdateSecretMetadataResponse, error) {
-	_va := make([]any, len(opts))
+	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -811,9 +811,9 @@ type MockClient_UpdateSecretMetadata_Call struct {
 //   - ctx context.Context
 //   - in *proto.UpdateSecretMetadataRequest
 //   - opts ...grpc.CallOption
-func (_e *MockClient_Expecter) UpdateSecretMetadata(ctx any, in any, opts ...any) *MockClient_UpdateSecretMetadata_Call {
+func (_e *MockClient_Expecter) UpdateSecretMetadata(ctx interface{}, in interface{}, opts ...interface{}) *MockClient_UpdateSecretMetadata_Call {
 	return &MockClient_UpdateSecretMetadata_Call{Call: _e.mock.On("UpdateSecretMetadata",
-		append([]any{ctx, in}, opts...)...)}
+		append([]interface{}{ctx, in}, opts...)...)}
 }
 
 func (_c *MockClient_UpdateSecretMetadata_Call) Run(run func(ctx context.Context, in *proto.UpdateSecretMetadataRequest, opts ...grpc.CallOption)) *MockClient_UpdateSecretMetadata_Call {

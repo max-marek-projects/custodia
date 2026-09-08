@@ -30,14 +30,14 @@ type client struct {
 }
 
 // NewHandler creates a new GRPCHandler.
-func NewClient(session *Session) (*client, *config.ClientConf, error) {
+func NewClient(session *Session) (*client, *config.ClientConf, context.Context, context.CancelFunc, error) {
 	configuration, err := config.NewClientConf()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize configuration: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to initialize configuration: %w", err)
 	}
 	err = logger.Initialize(configuration.LoggerLevel)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
 	clientItem := &client{storage: newTokenStorage(configuration.ConfigFolder, configuration.TokenFilename), session: session}
 	tlsConfig := &tls.Config{
@@ -49,11 +49,12 @@ func NewClient(session *Session) (*client, *config.ClientConf, error) {
 		grpc.WithChainUnaryInterceptor(clientItem.authInterceptor()),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	clientItem.connection = conn
 	clientItem.client = proto.NewCustodiaClient(conn)
-	return clientItem, configuration, nil
+	ctx, cancel := context.WithTimeout(context.Background(), configuration.RequestTimeout.Duration())
+	return clientItem, configuration, ctx, cancel, nil
 }
 
 func (c *client) getDeviceName() (string, error) {

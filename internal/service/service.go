@@ -52,6 +52,9 @@ type Service interface {
 
 	// UpdateSecretMetadata updates only the metadata of the secret.
 	UpdateSecretMetadata(ctx context.Context, userID int64, name string, metadata map[string]string) error
+
+	// Close closes all open connections
+	Close(ctx context.Context) error
 }
 
 // NewService creates a new service instance with the given dependencies.
@@ -437,4 +440,10 @@ func (s *service) UpdateSecretMetadata(ctx context.Context, userID int64, name s
 		return fmt.Errorf("failed to update secret metadata: %w", err)
 	}
 	return nil
+}
+
+// Close closes the underlying storage connection.
+// It should be called when the service is no longer needed.
+func (s *service) Close(ctx context.Context) error {
+	return s.storage.Close(ctx)
 }

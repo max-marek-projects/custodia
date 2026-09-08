@@ -43,7 +43,8 @@ func CreateTLSConf(certificate, key string) (*tls.Config, error) {
 // Server wraps a gRPC server with its listening address.
 type Server struct {
 	*grpc.Server
-	Addr string
+	Addr    string
+	handler *handlers.GRPCHandler
 }
 
 // NewServer creates a new gRPC server with the given address, handler, timeouts,
@@ -62,7 +63,7 @@ type Server struct {
 //   - *Server: the initialized server instance.
 func NewServer(
 	addr string,
-	h *handlers.GRPCHandler,
+	handler *handlers.GRPCHandler,
 	readTimeout, writeTimeout time.Duration,
 	cookieSecret string,
 	tlsConfig *tls.Config,
@@ -79,10 +80,11 @@ func NewServer(
 		),
 	)
 	server := grpc.NewServer(opts...)
-	proto.RegisterCustodiaServer(server, h)
+	proto.RegisterCustodiaServer(server, handler)
 	return &Server{
-		Server: server,
-		Addr:   addr,
+		Server:  server,
+		Addr:    addr,
+		handler: handler,
 	}
 }
 
@@ -105,8 +107,9 @@ func (s *Server) ListenAndServe() error {
 	return nil
 }
 
-// Shutdown gracefully stops the gRPC server.
-// It uses GracefulStop and always returns nil.
+// Shutdown gracefully stops the gRPC server and closes the handler.
+// It calls GracefulStop() and then handler.Close().
+// The context is only used for the handler.Close call.
 //
 // Parameters:
 //   - ctx: context (ignored, kept for interface compatibility).
@@ -115,5 +118,5 @@ func (s *Server) ListenAndServe() error {
 //   - error: always nil.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.GracefulStop()
-	return nil
+	return s.handler.Close(ctx)
 }

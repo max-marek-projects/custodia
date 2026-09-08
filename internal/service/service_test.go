@@ -524,3 +524,13 @@ func TestService_UpdateSecretMetadata(t *testing.T) {
 		assert.ErrorIs(t, err, ErrSecretNotFound)
 	})
 }
+
+func TestService_Close(t *testing.T) {
+	mockStorage := NewMockStorage(t)
+	mockStorage.EXPECT().Close(mock.Anything).Return(nil)
+
+	s := NewService(mockStorage, "secret", time.Hour, time.Hour)
+	err := s.Close(context.Background())
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}

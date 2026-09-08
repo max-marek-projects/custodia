@@ -52,7 +52,7 @@ type MockStorage_CheckRefreshToken_Call struct {
 //   - userID int64
 //   - tokenHash []byte
 //   - deviceName string
-func (_e *MockStorage_Expecter) CheckRefreshToken(ctx any, userID any, tokenHash any, deviceName any) *MockStorage_CheckRefreshToken_Call {
+func (_e *MockStorage_Expecter) CheckRefreshToken(ctx interface{}, userID interface{}, tokenHash interface{}, deviceName interface{}) *MockStorage_CheckRefreshToken_Call {
 	return &MockStorage_CheckRefreshToken_Call{Call: _e.mock.On("CheckRefreshToken", ctx, userID, tokenHash, deviceName)}
 }
 
@@ -118,7 +118,7 @@ type MockStorage_CheckUser_Call struct {
 // CheckUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-func (_e *MockStorage_Expecter) CheckUser(ctx any, username any) *MockStorage_CheckUser_Call {
+func (_e *MockStorage_Expecter) CheckUser(ctx interface{}, username interface{}) *MockStorage_CheckUser_Call {
 	return &MockStorage_CheckUser_Call{Call: _e.mock.On("CheckUser", ctx, username)}
 }
 
@@ -135,6 +135,52 @@ func (_c *MockStorage_CheckUser_Call) Return(_a0 int64, _a1 []byte, _a2 error) *
 }
 
 func (_c *MockStorage_CheckUser_Call) RunAndReturn(run func(context.Context, string) (int64, []byte, error)) *MockStorage_CheckUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Close provides a mock function with given fields: ctx
+func (_m *MockStorage) Close(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Close")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
+type MockStorage_Close_Call struct {
+	*mock.Call
+}
+
+// Close is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockStorage_Expecter) Close(ctx interface{}) *MockStorage_Close_Call {
+	return &MockStorage_Close_Call{Call: _e.mock.On("Close", ctx)}
+}
+
+func (_c *MockStorage_Close_Call) Run(run func(ctx context.Context)) *MockStorage_Close_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockStorage_Close_Call) Return(_a0 error) *MockStorage_Close_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_Close_Call) RunAndReturn(run func(context.Context) error) *MockStorage_Close_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -171,7 +217,7 @@ type MockStorage_CreateSecret_Call struct {
 //   - salt []byte
 //   - iv []byte
 //   - metadata map[string]string
-func (_e *MockStorage_Expecter) CreateSecret(ctx any, userID any, dataType any, name any, data any, salt any, iv any, metadata any) *MockStorage_CreateSecret_Call {
+func (_e *MockStorage_Expecter) CreateSecret(ctx interface{}, userID interface{}, dataType interface{}, name interface{}, data interface{}, salt interface{}, iv interface{}, metadata interface{}) *MockStorage_CreateSecret_Call {
 	return &MockStorage_CreateSecret_Call{Call: _e.mock.On("CreateSecret", ctx, userID, dataType, name, data, salt, iv, metadata)}
 }
 
@@ -219,7 +265,7 @@ type MockStorage_DeleteSecret_Call struct {
 //   - ctx context.Context
 //   - userID int64
 //   - name string
-func (_e *MockStorage_Expecter) DeleteSecret(ctx any, userID any, name any) *MockStorage_DeleteSecret_Call {
+func (_e *MockStorage_Expecter) DeleteSecret(ctx interface{}, userID interface{}, name interface{}) *MockStorage_DeleteSecret_Call {
 	return &MockStorage_DeleteSecret_Call{Call: _e.mock.On("DeleteSecret", ctx, userID, name)}
 }
 
@@ -308,7 +354,7 @@ type MockStorage_GetSecret_Call struct {
 //   - dataType models.DataType
 //   - name string
 //   - version uint64
-func (_e *MockStorage_Expecter) GetSecret(ctx any, userID any, dataType any, name any, version any) *MockStorage_GetSecret_Call {
+func (_e *MockStorage_Expecter) GetSecret(ctx interface{}, userID interface{}, dataType interface{}, name interface{}, version interface{}) *MockStorage_GetSecret_Call {
 	return &MockStorage_GetSecret_Call{Call: _e.mock.On("GetSecret", ctx, userID, dataType, name, version)}
 }
 
@@ -365,7 +411,7 @@ type MockStorage_RegisterUser_Call struct {
 // RegisterUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userData models.UserData
-func (_e *MockStorage_Expecter) RegisterUser(ctx any, userData any) *MockStorage_RegisterUser_Call {
+func (_e *MockStorage_Expecter) RegisterUser(ctx interface{}, userData interface{}) *MockStorage_RegisterUser_Call {
 	return &MockStorage_RegisterUser_Call{Call: _e.mock.On("RegisterUser", ctx, userData)}
 }
 
@@ -412,7 +458,7 @@ type MockStorage_RevokeAllTokens_Call struct {
 // RevokeAllTokens is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID int64
-func (_e *MockStorage_Expecter) RevokeAllTokens(ctx any, userID any) *MockStorage_RevokeAllTokens_Call {
+func (_e *MockStorage_Expecter) RevokeAllTokens(ctx interface{}, userID interface{}) *MockStorage_RevokeAllTokens_Call {
 	return &MockStorage_RevokeAllTokens_Call{Call: _e.mock.On("RevokeAllTokens", ctx, userID)}
 }
 
@@ -460,7 +506,7 @@ type MockStorage_RevokeToken_Call struct {
 //   - ctx context.Context
 //   - userID int64
 //   - deviceName string
-func (_e *MockStorage_Expecter) RevokeToken(ctx any, userID any, deviceName any) *MockStorage_RevokeToken_Call {
+func (_e *MockStorage_Expecter) RevokeToken(ctx interface{}, userID interface{}, deviceName interface{}) *MockStorage_RevokeToken_Call {
 	return &MockStorage_RevokeToken_Call{Call: _e.mock.On("RevokeToken", ctx, userID, deviceName)}
 }
 
@@ -508,7 +554,7 @@ type MockStorage_RollbackSecret_Call struct {
 //   - ctx context.Context
 //   - userID int64
 //   - name string
-func (_e *MockStorage_Expecter) RollbackSecret(ctx any, userID any, name any) *MockStorage_RollbackSecret_Call {
+func (_e *MockStorage_Expecter) RollbackSecret(ctx interface{}, userID interface{}, name interface{}) *MockStorage_RollbackSecret_Call {
 	return &MockStorage_RollbackSecret_Call{Call: _e.mock.On("RollbackSecret", ctx, userID, name)}
 }
 
@@ -558,7 +604,7 @@ type MockStorage_SaveRefreshToken_Call struct {
 //   - tokenHash []byte
 //   - deviceName string
 //   - ttl time.Duration
-func (_e *MockStorage_Expecter) SaveRefreshToken(ctx any, userID any, tokenHash any, deviceName any, ttl any) *MockStorage_SaveRefreshToken_Call {
+func (_e *MockStorage_Expecter) SaveRefreshToken(ctx interface{}, userID interface{}, tokenHash interface{}, deviceName interface{}, ttl interface{}) *MockStorage_SaveRefreshToken_Call {
 	return &MockStorage_SaveRefreshToken_Call{Call: _e.mock.On("SaveRefreshToken", ctx, userID, tokenHash, deviceName, ttl)}
 }
 
@@ -610,7 +656,7 @@ type MockStorage_UpdateSecret_Call struct {
 //   - salt []byte
 //   - iv []byte
 //   - metadata map[string]string
-func (_e *MockStorage_Expecter) UpdateSecret(ctx any, userID any, name any, data any, salt any, iv any, metadata any) *MockStorage_UpdateSecret_Call {
+func (_e *MockStorage_Expecter) UpdateSecret(ctx interface{}, userID interface{}, name interface{}, data interface{}, salt interface{}, iv interface{}, metadata interface{}) *MockStorage_UpdateSecret_Call {
 	return &MockStorage_UpdateSecret_Call{Call: _e.mock.On("UpdateSecret", ctx, userID, name, data, salt, iv, metadata)}
 }
 

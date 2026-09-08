@@ -3,8 +3,10 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/max-marek-projects/custodia/internal/utils"
 	"github.com/max-marek-projects/custodia/pkg/proto"
 )
 
@@ -45,6 +47,30 @@ type CardData struct {
 	HolderName     string `json:"holder_name"`
 	ExpirationDate string `json:"expiration_date"`
 	CVV            string `json:"cvv"`
+}
+
+// NewCardData creates a new CardData instance with validation.
+// It validates all fields using the corresponding validators from the utils package.
+// Returns the CardData pointer and a validation error, or nil if all fields are valid.
+func NewCardData(number, holderName, expirationDate, cvv string) (*CardData, error) {
+	if err := utils.ValidateCardNumber(number); err != nil {
+		return nil, fmt.Errorf("invalid card number: %w", err)
+	}
+	if err := utils.ValidateCardHolder(holderName); err != nil {
+		return nil, fmt.Errorf("invalid card holder name: %w", err)
+	}
+	if err := utils.ValidateExpirationDate(expirationDate); err != nil {
+		return nil, fmt.Errorf("invalid expiration date: %w", err)
+	}
+	if err := utils.ValidateCVV(cvv); err != nil {
+		return nil, fmt.Errorf("invalid CVV: %w", err)
+	}
+	return &CardData{
+		Number:         number,
+		HolderName:     holderName,
+		ExpirationDate: expirationDate,
+		CVV:            cvv,
+	}, nil
 }
 
 // ========== database ==========

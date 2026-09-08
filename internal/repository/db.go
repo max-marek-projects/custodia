@@ -98,6 +98,13 @@ func (dbs *dbStorage) runMigrations() error {
 	return nil
 }
 
+// Close closes the database connection.
+// It implements the io.Closer interface.
+// Returns an error if closing fails.
+func (dbs *dbStorage) Close(ctx context.Context) error {
+	return dbs.storage.Close()
+}
+
 // ========== USERS MANAGEMENT ===========
 
 // RegisterUser inserts a new user into the database.

@@ -770,3 +770,17 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 		assert.Contains(t, err.Error(), "missing data to update")
 	})
 }
+
+func TestDBStorage_Close(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	storage := &dbStorage{storage: db}
+	ctx := context.Background()
+
+	mock.ExpectClose()
+	err = storage.Close(ctx)
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

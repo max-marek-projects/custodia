@@ -22,6 +22,52 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
+// Close provides a mock function with given fields: ctx
+func (_m *MockService) Close(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Close")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockService_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
+type MockService_Close_Call struct {
+	*mock.Call
+}
+
+// Close is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) Close(ctx interface{}) *MockService_Close_Call {
+	return &MockService_Close_Call{Call: _e.mock.On("Close", ctx)}
+}
+
+func (_c *MockService_Close_Call) Run(run func(ctx context.Context)) *MockService_Close_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockService_Close_Call) Return(_a0 error) *MockService_Close_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockService_Close_Call) RunAndReturn(run func(context.Context) error) *MockService_Close_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSecret provides a mock function with given fields: ctx, userID, dataType, name, data, salt, iv, metadata
 func (_m *MockService) CreateSecret(ctx context.Context, userID int64, dataType models.DataType, name string, data []byte, salt []byte, iv []byte, metadata map[string]string) error {
 	ret := _m.Called(ctx, userID, dataType, name, data, salt, iv, metadata)
@@ -54,7 +100,7 @@ type MockService_CreateSecret_Call struct {
 //   - salt []byte
 //   - iv []byte
 //   - metadata map[string]string
-func (_e *MockService_Expecter) CreateSecret(ctx any, userID any, dataType any, name any, data any, salt any, iv any, metadata any) *MockService_CreateSecret_Call {
+func (_e *MockService_Expecter) CreateSecret(ctx interface{}, userID interface{}, dataType interface{}, name interface{}, data interface{}, salt interface{}, iv interface{}, metadata interface{}) *MockService_CreateSecret_Call {
 	return &MockService_CreateSecret_Call{Call: _e.mock.On("CreateSecret", ctx, userID, dataType, name, data, salt, iv, metadata)}
 }
 
@@ -102,7 +148,7 @@ type MockService_DeleteSecret_Call struct {
 //   - ctx context.Context
 //   - userID int64
 //   - name string
-func (_e *MockService_Expecter) DeleteSecret(ctx any, userID any, name any) *MockService_DeleteSecret_Call {
+func (_e *MockService_Expecter) DeleteSecret(ctx interface{}, userID interface{}, name interface{}) *MockService_DeleteSecret_Call {
 	return &MockService_DeleteSecret_Call{Call: _e.mock.On("DeleteSecret", ctx, userID, name)}
 }
 
@@ -191,7 +237,7 @@ type MockService_GetSecret_Call struct {
 //   - dataType models.DataType
 //   - name string
 //   - version uint64
-func (_e *MockService_Expecter) GetSecret(ctx any, userID any, dataType any, name any, version any) *MockService_GetSecret_Call {
+func (_e *MockService_Expecter) GetSecret(ctx interface{}, userID interface{}, dataType interface{}, name interface{}, version interface{}) *MockService_GetSecret_Call {
 	return &MockService_GetSecret_Call{Call: _e.mock.On("GetSecret", ctx, userID, dataType, name, version)}
 }
 
@@ -250,7 +296,7 @@ type MockService_LoginUser_Call struct {
 // LoginUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userData *models.LoginRequest
-func (_e *MockService_Expecter) LoginUser(ctx any, userData any) *MockService_LoginUser_Call {
+func (_e *MockService_Expecter) LoginUser(ctx interface{}, userData interface{}) *MockService_LoginUser_Call {
 	return &MockService_LoginUser_Call{Call: _e.mock.On("LoginUser", ctx, userData)}
 }
 
@@ -298,7 +344,7 @@ type MockService_Logout_Call struct {
 //   - ctx context.Context
 //   - userID int64
 //   - deviceName string
-func (_e *MockService_Expecter) Logout(ctx any, userID any, deviceName any) *MockService_Logout_Call {
+func (_e *MockService_Expecter) Logout(ctx interface{}, userID interface{}, deviceName interface{}) *MockService_Logout_Call {
 	return &MockService_Logout_Call{Call: _e.mock.On("Logout", ctx, userID, deviceName)}
 }
 
@@ -345,7 +391,7 @@ type MockService_LogoutAllDevices_Call struct {
 // LogoutAllDevices is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID int64
-func (_e *MockService_Expecter) LogoutAllDevices(ctx any, userID any) *MockService_LogoutAllDevices_Call {
+func (_e *MockService_Expecter) LogoutAllDevices(ctx interface{}, userID interface{}) *MockService_LogoutAllDevices_Call {
 	return &MockService_LogoutAllDevices_Call{Call: _e.mock.On("LogoutAllDevices", ctx, userID)}
 }
 
@@ -404,7 +450,7 @@ type MockService_RefreshAccess_Call struct {
 //   - userID int64
 //   - refreshToken []byte
 //   - deviceName string
-func (_e *MockService_Expecter) RefreshAccess(ctx any, userID any, refreshToken any, deviceName any) *MockService_RefreshAccess_Call {
+func (_e *MockService_Expecter) RefreshAccess(ctx interface{}, userID interface{}, refreshToken interface{}, deviceName interface{}) *MockService_RefreshAccess_Call {
 	return &MockService_RefreshAccess_Call{Call: _e.mock.On("RefreshAccess", ctx, userID, refreshToken, deviceName)}
 }
 
@@ -463,7 +509,7 @@ type MockService_RegisterUser_Call struct {
 // RegisterUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userData *models.LoginRequest
-func (_e *MockService_Expecter) RegisterUser(ctx any, userData any) *MockService_RegisterUser_Call {
+func (_e *MockService_Expecter) RegisterUser(ctx interface{}, userData interface{}) *MockService_RegisterUser_Call {
 	return &MockService_RegisterUser_Call{Call: _e.mock.On("RegisterUser", ctx, userData)}
 }
 
@@ -511,7 +557,7 @@ type MockService_RollbackSecret_Call struct {
 //   - ctx context.Context
 //   - userID int64
 //   - name string
-func (_e *MockService_Expecter) RollbackSecret(ctx any, userID any, name any) *MockService_RollbackSecret_Call {
+func (_e *MockService_Expecter) RollbackSecret(ctx interface{}, userID interface{}, name interface{}) *MockService_RollbackSecret_Call {
 	return &MockService_RollbackSecret_Call{Call: _e.mock.On("RollbackSecret", ctx, userID, name)}
 }
 
@@ -562,7 +608,7 @@ type MockService_UpdateSecretData_Call struct {
 //   - data []byte
 //   - salt []byte
 //   - iv []byte
-func (_e *MockService_Expecter) UpdateSecretData(ctx any, userID any, name any, data any, salt any, iv any) *MockService_UpdateSecretData_Call {
+func (_e *MockService_Expecter) UpdateSecretData(ctx interface{}, userID interface{}, name interface{}, data interface{}, salt interface{}, iv interface{}) *MockService_UpdateSecretData_Call {
 	return &MockService_UpdateSecretData_Call{Call: _e.mock.On("UpdateSecretData", ctx, userID, name, data, salt, iv)}
 }
 
@@ -611,7 +657,7 @@ type MockService_UpdateSecretMetadata_Call struct {
 //   - userID int64
 //   - name string
 //   - metadata map[string]string
-func (_e *MockService_Expecter) UpdateSecretMetadata(ctx any, userID any, name any, metadata any) *MockService_UpdateSecretMetadata_Call {
+func (_e *MockService_Expecter) UpdateSecretMetadata(ctx interface{}, userID interface{}, name interface{}, metadata interface{}) *MockService_UpdateSecretMetadata_Call {
 	return &MockService_UpdateSecretMetadata_Call{Call: _e.mock.On("UpdateSecretMetadata", ctx, userID, name, metadata)}
 }
 
