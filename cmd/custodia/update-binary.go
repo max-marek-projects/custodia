@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -43,7 +44,10 @@ var updateSecretBinaryCmd = &cobra.Command{
 		defer cli.Close()
 		// Update the secret binary data.
 		if err := cli.UpdateSecretBinary(ctx, name, secretData); err != nil {
-			return fmt.Errorf("failed to update secret binary data: %w", err)
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("binary secret is too large: %w", err)
+			}
+			return fmt.Errorf("failed to update secret binary: %w", err)
 		}
 		fmt.Printf("updated secret binary data `%s` successfully\n", name)
 		return nil

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -65,6 +66,9 @@ var addCardDataCmd = &cobra.Command{
 			return fmt.Errorf("wrong card data: %w", err)
 		}
 		if err := cli.CreateCardData(ctx, name, cardData, metadata); err != nil {
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("card data is too large: %w", err)
+			}
 			return fmt.Errorf("failed to create card data: %w", err)
 		}
 		fmt.Printf("created card data `%s` successfully\n", name)

@@ -27,10 +27,14 @@ func setupTest(t *testing.T) (*client, *MockClient, *tokenStorage, *Session) {
 	session := &Session{}
 	mockClient := NewMockClient(t)
 
+	cache, err := newSecretCache("", logger.NewNop())
+	require.NoError(t, err)
+
 	cl := &client{
 		client:  mockClient,
 		storage: storage,
 		session: session,
+		cache:   cache,
 	}
 	return cl, mockClient, storage, session
 }

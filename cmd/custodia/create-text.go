@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -43,6 +44,9 @@ var addSecretTextCmd = &cobra.Command{
 		defer cli.Close()
 		// Send the encrypted text to the server.
 		if err := cli.CreateSecretText(ctx, name, string(secretData), metadata); err != nil {
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("secret text is too large: %w", err)
+			}
 			return fmt.Errorf("failed to create secret text: %w", err)
 		}
 		fmt.Printf("created secret text data `%s` successfully\n", name)

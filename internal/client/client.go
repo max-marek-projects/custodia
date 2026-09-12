@@ -21,6 +21,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	// default gRPC limit - 4 MiB.
+	maxGRPCMessageSize = 4 * 1024 * 1024
+
+	// leave 64 KiB for salt, iv and other fields
+	maxSecretSize = maxGRPCMessageSize - 64*1024
+)
+
 //go:generate mockery --name=CustodiaClient --srcpkg=github.com/max-marek-projects/custodia/pkg/proto --output=. --outpkg=client --filename=mock_client.gen_test.go --with-expecter --structname=MockClient
 
 // Handler handles grpc endpoints for URL shortening and redirection.
@@ -29,6 +37,7 @@ type client struct {
 	client     proto.CustodiaClient
 	storage    *tokenStorage
 	session    *Session
+	cache      *secretCache
 	logger     *slog.Logger
 }
 
@@ -42,7 +51,16 @@ func NewClient(session *Session) (*client, *config.ClientConf, context.Context, 
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	clientItem := &client{storage: newTokenStorage(configuration.ConfigFolder, configuration.TokenFilename, logger), session: session, logger: logger}
+	cache, err := newSecretCache(configuration.ConfigFolder, logger)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to initialize cache: %w", err)
+	}
+	clientItem := &client{
+		storage: newTokenStorage(configuration.ConfigFolder, configuration.TokenFilename, logger),
+		session: session,
+		logger:  logger,
+		cache:   cache,
+	}
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
@@ -218,6 +236,9 @@ func (c *client) createSecret(
 	if !c.session.LoggedIn() {
 		return ErrSessionRequired
 	}
+	if len(data) > maxSecretSize {
+		return fmt.Errorf("%w: maximum size is %d bytes, got %d", ErrSecretTooLarge, maxSecretSize, len(data))
+	}
 	request := &proto.CreateSecretRequest{}
 	request.SetName(name)
 	request.SetType(dataType)
@@ -272,11 +293,36 @@ func (c *client) getSecret(
 	request.SetName(name)
 	request.SetVersion(version)
 	request.SetType(dataType)
+	tokens, err := c.storage.Read()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read tokens: %w", err)
+	}
 	resp, err := c.client.GetSecret(
 		ctx,
 		request,
 	)
 	if err != nil {
+		// On transport-level failures, try to serve from the local cache.
+		if isConnectionError(err) {
+			cached, ok := c.cache.Get(tokens.UserID, name, version)
+			if !ok {
+				return nil, nil, fmt.Errorf(
+					"failed to get secret: server unreachable and no cached copy: %w", err,
+				)
+			}
+			c.logger.Warn("server unreachable, serving secret from local cache",
+				slog.String("name", name),
+				slog.Uint64("version", version),
+				slog.Any("error", err),
+			)
+			plaintext, decErr := utils.DecryptData(
+				cached.Salt, cached.IV, cached.Data, c.session.Password,
+			)
+			if decErr != nil {
+				return nil, nil, fmt.Errorf("failed to decrypt cached secret: %w", decErr)
+			}
+			return plaintext, cached.Metadata, nil
+		}
 		if st, ok := status.FromError(err); ok {
 			switch st.Code() {
 			case codes.NotFound:
@@ -292,6 +338,23 @@ func (c *client) getSecret(
 	data, err = utils.DecryptData(resp.GetSalt(), resp.GetIv(), resp.GetData(), c.session.Password)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decrypt data: %w", err)
+	}
+	// Cache the encrypted payload for offline use. Best-effort: a failure
+	// to persist the cache must not break the successful read.
+	if cacheErr := c.cache.Put(cachedSecret{
+		UserID:   tokens.UserID,
+		DataType: int32(dataType),
+		Name:     name,
+		Version:  version,
+		Salt:     resp.GetSalt(),
+		IV:       resp.GetIv(),
+		Data:     resp.GetData(),
+		Metadata: resp.GetMetadata(),
+	}); cacheErr != nil {
+		c.logger.Warn("failed to save secret to local cache",
+			slog.String("name", name),
+			slog.Any("error", cacheErr),
+		)
 	}
 	return data, resp.GetMetadata(), nil
 }
@@ -319,6 +382,9 @@ func (c *client) updateSecret(
 ) error {
 	if !c.session.LoggedIn() {
 		return ErrSessionRequired
+	}
+	if len(data) > maxSecretSize {
+		return fmt.Errorf("%w: maximum size is %d bytes, got %d", ErrSecretTooLarge, maxSecretSize, len(data))
 	}
 	request := &proto.UpdateSecretDataRequest{}
 	request.SetName(name)

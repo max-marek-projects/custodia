@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -54,6 +55,9 @@ var updateCredentialsCmd = &cobra.Command{
 			Login:    login,
 			Password: string(password),
 		}); err != nil {
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("credentials data is too large: %w", err)
+			}
 			return fmt.Errorf("failed to update credentials: %w", err)
 		}
 		fmt.Printf("updated credentials `%s` successfully\n", name)

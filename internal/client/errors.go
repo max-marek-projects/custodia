@@ -1,6 +1,11 @@
 package client
 
-import "errors"
+import (
+	"errors"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
 
 // Auth errors
 var (
@@ -20,4 +25,21 @@ var (
 	ErrSecretNotFound            = errors.New("secret not found")
 	ErrSecretAlreadyExists       = errors.New("secret with this name already exists")
 	ErrSecretRollbackNotPossible = errors.New("cannot rollback secret: only one version exists")
+	ErrSecretTooLarge            = errors.New("secret data is too large")
 )
+
+// isConnectionError reports whether err is a gRPC error caused by the
+// server being unreachable, as opposed to the server rejecting the request.
+// Only these errors trigger the offline cache fallback.
+func isConnectionError(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.Unavailable, codes.DeadlineExceeded, codes.Canceled:
+		return true
+	default:
+		return false
+	}
+}

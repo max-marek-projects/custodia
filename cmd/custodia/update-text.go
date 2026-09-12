@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -43,6 +44,9 @@ var updateSecretTextCmd = &cobra.Command{
 		defer cli.Close()
 		// Update the secret text.
 		if err := cli.UpdateSecretText(ctx, name, string(secretData)); err != nil {
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("secret text is too large: %w", err)
+			}
 			return fmt.Errorf("failed to update secret text: %w", err)
 		}
 		fmt.Printf("updated secret text `%s` successfully\n", name)

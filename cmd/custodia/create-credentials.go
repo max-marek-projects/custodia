@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -52,6 +53,9 @@ var addCredentialsCmd = &cobra.Command{
 			Login:    login,
 			Password: string(password),
 		}, metadata); err != nil {
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("credentials data is too large: %w", err)
+			}
 			return fmt.Errorf("failed to create credentials: %w", err)
 		}
 		fmt.Printf("created credentials `%s` successfully\n", name)

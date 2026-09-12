@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -42,7 +43,10 @@ var addSecretBinaryCmd = &cobra.Command{
 		defer cli.Close()
 		// Send the encrypted secret to the server.
 		if err := cli.CreateSecretBinary(ctx, name, secretData, metadata); err != nil {
-			return fmt.Errorf("failed to login: %w", err)
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("binary secret is too large: %w", err)
+			}
+			return fmt.Errorf("failed to create secret binary: %w", err)
 		}
 		fmt.Printf("created secret binary data `%s` successfully\n", name)
 		return nil

@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/max-marek-projects/custodia/internal/client"
@@ -65,6 +66,9 @@ var updateCardDataCmd = &cobra.Command{
 			return fmt.Errorf("wrong card data: %w", err)
 		}
 		if err := cli.UpdateCardData(ctx, name, cardData); err != nil {
+			if errors.Is(err, client.ErrSecretTooLarge) {
+				return fmt.Errorf("card data is too large: %w", err)
+			}
 			return fmt.Errorf("failed to update card data: %w", err)
 		}
 		fmt.Printf("updated card data `%s` successfully\n", name)
