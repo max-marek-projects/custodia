@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/max-marek-projects/custodia/pkg/proto"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func TestClient_authInterceptor(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 	t.Setenv("APPDATA", tmpDir)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	session := &Session{}
 	mockGrpc := NewMockClient(t)
 

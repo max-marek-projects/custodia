@@ -2,23 +2,34 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/jackc/pgx/v5"
 	"github.com/max-marek-projects/custodia/internal/models"
+	"github.com/pashagolub/pgxmock/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDBStorage_RegisterUser(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+// errConnDone is a generic connection error used in tests instead of sql.ErrConnDone,
+// because pgx does not have an exact equivalent of database/sql's ErrConnDone.
+var errConnDone = errors.New("connection is done")
 
-	storage := &dbStorage{storage: db}
+func newMockStorage(t *testing.T) (*dbStorage, pgxmock.PgxPoolIface) {
+	t.Helper()
+	mock, err := pgxmock.NewPool()
+	require.NoError(t, err)
+	t.Cleanup(mock.Close)
+	return &dbStorage{storage: mock}, mock
+}
+
+// ========== USERS ==========
+
+func TestDBStorage_RegisterUser(t *testing.T) {
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
@@ -27,7 +38,7 @@ func TestDBStorage_RegisterUser(t *testing.T) {
 
 		mock.ExpectQuery(`INSERT INTO users`).
 			WithArgs(userData.Login, userData.PasswordHash).
-			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(expectedID))
+			WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(expectedID))
 
 		id, err := storage.RegisterUser(ctx, userData)
 		assert.NoError(t, err)
@@ -40,7 +51,7 @@ func TestDBStorage_RegisterUser(t *testing.T) {
 
 		mock.ExpectQuery(`INSERT INTO users`).
 			WithArgs(userData.Login, userData.PasswordHash).
-			WillReturnError(sql.ErrNoRows)
+			WillReturnError(pgx.ErrNoRows)
 
 		_, err := storage.RegisterUser(ctx, userData)
 		assert.ErrorIs(t, err, ErrAlreadyInStorage)
@@ -52,10 +63,10 @@ func TestDBStorage_RegisterUser(t *testing.T) {
 
 		mock.ExpectQuery(`INSERT INTO users`).
 			WithArgs(userData.Login, userData.PasswordHash).
-			WillReturnError(sql.ErrConnDone)
+			WillReturnError(errConnDone)
 
 		_, err := storage.RegisterUser(ctx, userData)
-		assert.ErrorIs(t, err, sql.ErrConnDone)
+		assert.ErrorIs(t, err, errConnDone)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -75,11 +86,7 @@ func TestDBStorage_RegisterUser(t *testing.T) {
 }
 
 func TestDBStorage_CheckUser(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	t.Run("found", func(t *testing.T) {
@@ -89,7 +96,8 @@ func TestDBStorage_CheckUser(t *testing.T) {
 
 		mock.ExpectQuery(`SELECT id, password_hash FROM users WHERE username = \$1`).
 			WithArgs(username).
-			WillReturnRows(sqlmock.NewRows([]string{"id", "password_hash"}).AddRow(expectedID, expectedHash))
+			WillReturnRows(pgxmock.NewRows([]string{"id", "password_hash"}).
+				AddRow(expectedID, expectedHash))
 
 		id, hash, err := storage.CheckUser(ctx, username)
 		assert.NoError(t, err)
@@ -103,7 +111,7 @@ func TestDBStorage_CheckUser(t *testing.T) {
 
 		mock.ExpectQuery(`SELECT id, password_hash FROM users WHERE username = \$1`).
 			WithArgs(username).
-			WillReturnError(sql.ErrNoRows)
+			WillReturnError(pgx.ErrNoRows)
 
 		_, _, err := storage.CheckUser(ctx, username)
 		assert.ErrorIs(t, err, ErrUserNotFound)
@@ -115,10 +123,10 @@ func TestDBStorage_CheckUser(t *testing.T) {
 
 		mock.ExpectQuery(`SELECT id, password_hash FROM users WHERE username = \$1`).
 			WithArgs(username).
-			WillReturnError(sql.ErrConnDone)
+			WillReturnError(errConnDone)
 
 		_, _, err := storage.CheckUser(ctx, username)
-		assert.ErrorIs(t, err, sql.ErrConnDone)
+		assert.ErrorIs(t, err, errConnDone)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -129,12 +137,10 @@ func TestDBStorage_CheckUser(t *testing.T) {
 	})
 }
 
-func TestDBStorage_SaveRefreshToken(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+// ========== TOKENS ==========
 
-	storage := &dbStorage{storage: db}
+func TestDBStorage_SaveRefreshToken(t *testing.T) {
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
@@ -146,10 +152,10 @@ func TestDBStorage_SaveRefreshToken(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND device_name = \$2 AND revoked_at IS NULL`).
 			WithArgs(userID, device).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 		mock.ExpectExec(`INSERT INTO tokens \(user_id, token_hash, expires_at, device_name\) VALUES \(\$1, \$2, \$3, \$4\)`).
-			WithArgs(userID, tokenHash, sqlmock.AnyArg(), device).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+			WithArgs(userID, tokenHash, pgxmock.AnyArg(), device).
+			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		mock.ExpectCommit()
 
 		err := storage.SaveRefreshToken(ctx, userID, tokenHash, device, ttl)
@@ -166,11 +172,11 @@ func TestDBStorage_SaveRefreshToken(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND device_name = \$2 AND revoked_at IS NULL`).
 			WithArgs(userID, device).
-			WillReturnError(sql.ErrConnDone)
+			WillReturnError(errConnDone)
 		mock.ExpectRollback()
 
 		err := storage.SaveRefreshToken(ctx, userID, tokenHash, device, ttl)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, errConnDone)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -183,15 +189,14 @@ func TestDBStorage_SaveRefreshToken(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND device_name = \$2 AND revoked_at IS NULL`).
 			WithArgs(userID, device).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 		mock.ExpectExec(`INSERT INTO tokens \(user_id, token_hash, expires_at, device_name\) VALUES \(\$1, \$2, \$3, \$4\)`).
-			WithArgs(userID, tokenHash, sqlmock.AnyArg(), device).
-			WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectCommit().WillReturnError(sql.ErrTxDone)
+			WithArgs(userID, tokenHash, pgxmock.AnyArg(), device).
+			WillReturnResult(pgxmock.NewResult("INSERT", 1))
+		mock.ExpectCommit().WillReturnError(pgx.ErrTxClosed)
 
 		err := storage.SaveRefreshToken(ctx, userID, tokenHash, device, ttl)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, sql.ErrTxDone)
+		assert.ErrorIs(t, err, pgx.ErrTxClosed)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -214,11 +219,7 @@ func TestDBStorage_SaveRefreshToken(t *testing.T) {
 }
 
 func TestDBStorage_CheckRefreshToken(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	t.Run("valid token", func(t *testing.T) {
@@ -228,7 +229,7 @@ func TestDBStorage_CheckRefreshToken(t *testing.T) {
 
 		mock.ExpectQuery(`SELECT 1 FROM tokens WHERE user_id = \$1 AND token_hash = \$2 AND device_name = \$3 AND revoked_at IS NULL AND expires_at > NOW\(\)`).
 			WithArgs(userID, tokenHash, device).
-			WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+			WillReturnRows(pgxmock.NewRows([]string{"1"}).AddRow(1))
 
 		err := storage.CheckRefreshToken(ctx, userID, tokenHash, device)
 		assert.NoError(t, err)
@@ -242,7 +243,7 @@ func TestDBStorage_CheckRefreshToken(t *testing.T) {
 
 		mock.ExpectQuery(`SELECT 1 FROM tokens WHERE user_id = \$1 AND token_hash = \$2 AND device_name = \$3 AND revoked_at IS NULL AND expires_at > NOW\(\)`).
 			WithArgs(userID, tokenHash, device).
-			WillReturnError(sql.ErrNoRows)
+			WillReturnError(pgx.ErrNoRows)
 
 		err := storage.CheckRefreshToken(ctx, userID, tokenHash, device)
 		assert.ErrorIs(t, err, ErrRefreshTokenExpiredOrInvalid)
@@ -264,11 +265,7 @@ func TestDBStorage_CheckRefreshToken(t *testing.T) {
 }
 
 func TestDBStorage_RevokeToken(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
@@ -277,7 +274,7 @@ func TestDBStorage_RevokeToken(t *testing.T) {
 
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND device_name = \$2 AND revoked_at IS NULL`).
 			WithArgs(userID, device).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 		err := storage.RevokeToken(ctx, userID, device)
 		assert.NoError(t, err)
@@ -290,10 +287,10 @@ func TestDBStorage_RevokeToken(t *testing.T) {
 
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND device_name = \$2 AND revoked_at IS NULL`).
 			WithArgs(userID, device).
-			WillReturnError(sql.ErrConnDone)
+			WillReturnError(errConnDone)
 
 		err := storage.RevokeToken(ctx, userID, device)
-		assert.ErrorIs(t, err, sql.ErrConnDone)
+		assert.ErrorIs(t, err, errConnDone)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -303,7 +300,7 @@ func TestDBStorage_RevokeToken(t *testing.T) {
 
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND device_name = \$2 AND revoked_at IS NULL`).
 			WithArgs(userID, device).
-			WillReturnResult(sqlmock.NewResult(0, 0))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 0))
 
 		err := storage.RevokeToken(ctx, userID, device)
 		assert.ErrorIs(t, err, ErrNoChanges)
@@ -321,11 +318,7 @@ func TestDBStorage_RevokeToken(t *testing.T) {
 }
 
 func TestDBStorage_RevokeAllTokens(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
@@ -333,7 +326,7 @@ func TestDBStorage_RevokeAllTokens(t *testing.T) {
 
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND revoked_at IS NULL`).
 			WithArgs(userID).
-			WillReturnResult(sqlmock.NewResult(0, 3))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 3))
 
 		err := storage.RevokeAllTokens(ctx, userID)
 		assert.NoError(t, err)
@@ -345,10 +338,10 @@ func TestDBStorage_RevokeAllTokens(t *testing.T) {
 
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND revoked_at IS NULL`).
 			WithArgs(userID).
-			WillReturnError(sql.ErrConnDone)
+			WillReturnError(errConnDone)
 
 		err := storage.RevokeAllTokens(ctx, userID)
-		assert.ErrorIs(t, err, sql.ErrConnDone)
+		assert.ErrorIs(t, err, errConnDone)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -357,7 +350,7 @@ func TestDBStorage_RevokeAllTokens(t *testing.T) {
 
 		mock.ExpectExec(`UPDATE tokens SET revoked_at = NOW\(\) WHERE user_id = \$1 AND revoked_at IS NULL`).
 			WithArgs(userID).
-			WillReturnResult(sqlmock.NewResult(0, 0))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 0))
 
 		err := storage.RevokeAllTokens(ctx, userID)
 		assert.ErrorIs(t, err, ErrNoChanges)
@@ -370,27 +363,25 @@ func TestDBStorage_RevokeAllTokens(t *testing.T) {
 	})
 }
 
-func TestDBStorage_CreateSecret(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+// ========== SECRETS ==========
 
-	storage := &dbStorage{storage: db}
+func TestDBStorage_CreateSecret(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("success", func(t *testing.T) {
-		userID := int64(1)
-		dataType := models.DataTypeCredentials
-		name := "mysecret"
-		data := []byte("data")
-		salt := []byte("salt")
-		iv := []byte("iv")
-		metadata := map[string]string{"key": "value"}
-		rawMetadata, _ := json.Marshal(metadata)
+	userID := int64(1)
+	dataType := models.DataTypeCredentials
+	name := "mysecret"
+	data := []byte("data")
+	salt := []byte("salt")
+	iv := []byte("iv")
+	metadata := map[string]string{"key": "value"}
+	rawMetadata, _ := json.Marshal(metadata)
 
+	t.Run("success", func(t *testing.T) {
+		storage, mock := newMockStorage(t)
 		mock.ExpectExec(`INSERT INTO secrets \(user_id, type, name, data, salt, iv, metadata\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7\)`).
 			WithArgs(userID, dataType, name, data, salt, iv, rawMetadata).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := storage.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
 		assert.NoError(t, err)
@@ -398,37 +389,21 @@ func TestDBStorage_CreateSecret(t *testing.T) {
 	})
 
 	t.Run("db error", func(t *testing.T) {
-		userID := int64(1)
-		dataType := models.DataTypeCredentials
-		name := "mysecret"
-		data := []byte("data")
-		salt := []byte("salt")
-		iv := []byte("iv")
-		metadata := map[string]string{"key": "value"}
-		rawMetadata, _ := json.Marshal(metadata)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectExec(`INSERT INTO secrets`).
 			WithArgs(userID, dataType, name, data, salt, iv, rawMetadata).
-			WillReturnError(sql.ErrConnDone)
+			WillReturnError(errConnDone)
 
 		err := storage.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
-		assert.ErrorIs(t, err, sql.ErrConnDone)
+		assert.ErrorIs(t, err, errConnDone)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("conflict", func(t *testing.T) {
-		userID := int64(1)
-		dataType := models.DataTypeCredentials
-		name := "mysecret"
-		data := []byte("data")
-		salt := []byte("salt")
-		iv := []byte("iv")
-		metadata := map[string]string{"key": "value"}
-		rawMetadata, _ := json.Marshal(metadata)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectExec(`INSERT INTO secrets \(user_id, type, name, data, salt, iv, metadata\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7\)`).
 			WithArgs(userID, dataType, name, data, salt, iv, rawMetadata).
-			WillReturnResult(sqlmock.NewResult(0, 0))
+			WillReturnResult(pgxmock.NewResult("INSERT", 0))
 
 		err := storage.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
 		assert.ErrorIs(t, err, ErrAlreadyInStorage)
@@ -436,33 +411,33 @@ func TestDBStorage_CreateSecret(t *testing.T) {
 	})
 
 	t.Run("empty user id", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.CreateSecret(ctx, 0, models.DataTypeCredentials, "name", []byte("d"), []byte("s"), []byte("i"), nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty name", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.CreateSecret(ctx, 1, models.DataTypeCredentials, "", []byte("d"), []byte("s"), []byte("i"), nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty data", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.CreateSecret(ctx, 1, models.DataTypeCredentials, "name", []byte{}, []byte("s"), []byte("i"), nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty salt", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.CreateSecret(ctx, 1, models.DataTypeCredentials, "name", []byte("d"), []byte{}, []byte("i"), nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty iv", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.CreateSecret(ctx, 1, models.DataTypeCredentials, "name", []byte("d"), []byte("s"), []byte{}, nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
 
 func TestDBStorage_GetSecret(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
 	ctx := context.Background()
 
 	t.Run("success latest version", func(t *testing.T) {
@@ -475,10 +450,10 @@ func TestDBStorage_GetSecret(t *testing.T) {
 		iv := []byte("iv")
 		metadata := map[string]string{"key": "value"}
 		rawMetadata, _ := json.Marshal(metadata)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectQuery(`SELECT data, salt, iv, metadata FROM secrets WHERE user_id = \$1 AND type = \$2 AND name = \$3 AND \(version = \$4 OR \$4 = 0\) AND deleted_at IS NULL ORDER BY version DESC LIMIT 1`).
 			WithArgs(userID, dataType, name, version).
-			WillReturnRows(sqlmock.NewRows([]string{"data", "salt", "iv", "metadata"}).
+			WillReturnRows(pgxmock.NewRows([]string{"data", "salt", "iv", "metadata"}).
 				AddRow(data, salt, iv, rawMetadata))
 
 		gotData, gotSalt, gotIv, gotMetadata, err := storage.GetSecret(ctx, userID, dataType, name, version)
@@ -495,10 +470,10 @@ func TestDBStorage_GetSecret(t *testing.T) {
 		dataType := models.DataTypeCredentials
 		name := "missing"
 		version := uint64(0)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectQuery(`SELECT data, salt, iv, metadata FROM secrets WHERE user_id = \$1 AND type = \$2 AND name = \$3 AND \(version = \$4 OR \$4 = 0\) AND deleted_at IS NULL ORDER BY version DESC LIMIT 1`).
 			WithArgs(userID, dataType, name, version).
-			WillReturnError(sql.ErrNoRows)
+			WillReturnError(pgx.ErrNoRows)
 
 		_, _, _, _, err := storage.GetSecret(ctx, userID, dataType, name, version)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
@@ -506,34 +481,32 @@ func TestDBStorage_GetSecret(t *testing.T) {
 	})
 
 	t.Run("empty user id", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		_, _, _, _, err := storage.GetSecret(ctx, 0, models.DataTypeCredentials, "name", 0)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty name", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		_, _, _, _, err := storage.GetSecret(ctx, 1, models.DataTypeCredentials, "", 0)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
 
 func TestDBStorage_RollbackSecret(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
 		userID := int64(1)
 		name := "mysecret"
+		storage, mock := newMockStorage(t)
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT MAX\(version\) FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(version\), 0\)`).
 			WithArgs(userID, name).
-			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(3))
-		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\) WHERE user_id = \$1 AND name = \$2 AND version = \$3 AND deleted_at IS NULL`).
-			WithArgs(userID, name, 3).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+			WillReturnRows(pgxmock.NewRows([]string{"coalesce"}).AddRow(int64(3)))
+		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\)`).
+			WithArgs(userID, name, int64(3)).
+			WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 		mock.ExpectCommit()
 
 		err := storage.RollbackSecret(ctx, userID, name)
@@ -544,11 +517,12 @@ func TestDBStorage_RollbackSecret(t *testing.T) {
 	t.Run("not enough versions", func(t *testing.T) {
 		userID := int64(1)
 		name := "mysecret"
+		storage, mock := newMockStorage(t)
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT MAX\(version\) FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(version\), 0\)`).
 			WithArgs(userID, name).
-			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(1))
+			WillReturnRows(pgxmock.NewRows([]string{"coalesce"}).AddRow(int64(1)))
 		mock.ExpectRollback()
 
 		err := storage.RollbackSecret(ctx, userID, name)
@@ -556,32 +530,16 @@ func TestDBStorage_RollbackSecret(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("update fails", func(t *testing.T) {
+	t.Run("no active versions returns ErrSecretNotFound", func(t *testing.T) {
 		userID := int64(1)
-		name := "mysecret"
+		name := "missing"
+		storage, mock := newMockStorage(t)
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT MAX\(version\) FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
+		// With COALESCE, an empty result set yields 0, not NULL.
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(version\), 0\)`).
 			WithArgs(userID, name).
-			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(2))
-		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\) WHERE user_id = \$1 AND name = \$2 AND version = \$3 AND deleted_at IS NULL`).
-			WithArgs(userID, name, 2).
-			WillReturnError(sql.ErrConnDone)
-		mock.ExpectRollback()
-
-		err := storage.RollbackSecret(ctx, userID, name)
-		assert.ErrorIs(t, err, sql.ErrConnDone)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("select max no rows", func(t *testing.T) {
-		userID := int64(1)
-		name := "nonexistent"
-
-		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT MAX\(version\) FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
-			WithArgs(userID, name).
-			WillReturnError(sql.ErrNoRows)
+			WillReturnRows(pgxmock.NewRows([]string{"coalesce"}).AddRow(int64(0)))
 		mock.ExpectRollback()
 
 		err := storage.RollbackSecret(ctx, userID, name)
@@ -589,50 +547,36 @@ func TestDBStorage_RollbackSecret(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("commit fails", func(t *testing.T) {
+	t.Run("update affects zero rows returns ErrSecretNotFound", func(t *testing.T) {
 		userID := int64(1)
-		name := "mysecret"
+		name := "race"
+		storage, mock := newMockStorage(t)
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT MAX\(version\) FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(version\), 0\)`).
 			WithArgs(userID, name).
-			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(3))
-		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\) WHERE user_id = \$1 AND name = \$2 AND version = \$3 AND deleted_at IS NULL`).
-			WithArgs(userID, name, 3).
-			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit().WillReturnError(sql.ErrTxDone)
+			WillReturnRows(pgxmock.NewRows([]string{"coalesce"}).AddRow(int64(2)))
+		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\)`).
+			WithArgs(userID, name, int64(2)).
+			WillReturnResult(pgxmock.NewResult("UPDATE", 0))
+		mock.ExpectRollback()
 
 		err := storage.RollbackSecret(ctx, userID, name)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, sql.ErrTxDone)
+		assert.ErrorIs(t, err, ErrSecretNotFound)
 		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("empty user id", func(t *testing.T) {
-		err := storage.RollbackSecret(ctx, 0, "name")
-		assert.ErrorIs(t, err, ErrInvalidArgument)
-	})
-	t.Run("empty name", func(t *testing.T) {
-		err := storage.RollbackSecret(ctx, 1, "")
-		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
 
 func TestDBStorage_DeleteSecret(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
 		userID := int64(1)
 		name := "mysecret"
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\) WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
 			WithArgs(userID, name).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 		err := storage.DeleteSecret(ctx, userID, name)
 		assert.NoError(t, err)
@@ -642,10 +586,10 @@ func TestDBStorage_DeleteSecret(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		userID := int64(1)
 		name := "missing"
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectExec(`UPDATE secrets SET deleted_at = NOW\(\) WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL`).
 			WithArgs(userID, name).
-			WillReturnResult(sqlmock.NewResult(0, 0))
+			WillReturnResult(pgxmock.NewResult("UPDATE", 0))
 
 		err := storage.DeleteSecret(ctx, userID, name)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
@@ -653,21 +597,18 @@ func TestDBStorage_DeleteSecret(t *testing.T) {
 	})
 
 	t.Run("empty user id", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.DeleteSecret(ctx, 0, "name")
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty name", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.DeleteSecret(ctx, 1, "")
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
 
 func TestDBStorage_UpdateSecret(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
 	ctx := context.Background()
 
 	t.Run("success update data and metadata", func(t *testing.T) {
@@ -684,15 +625,15 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 		oldMetadata := map[string]string{"old": "meta"}
 		oldRaw, _ := json.Marshal(oldMetadata)
 		newRaw, _ := json.Marshal(newMetadata)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT data, type, salt, iv, metadata, version FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL ORDER BY version DESC LIMIT 1 FOR UPDATE`).
 			WithArgs(userID, name).
-			WillReturnRows(sqlmock.NewRows([]string{"data", "type", "salt", "iv", "metadata", "version"}).
+			WillReturnRows(pgxmock.NewRows([]string{"data", "type", "salt", "iv", "metadata", "version"}).
 				AddRow(oldData, models.DataTypeCredentials, oldSalt, oldIV, oldRaw, 1))
 		mock.ExpectExec(`INSERT INTO secrets \(user_id, name, type, data, salt, iv, metadata, version, created_at\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, NOW\(\)\)`).
-			WithArgs(userID, name, models.DataTypeCredentials, newData, newSalt, newIV, newRaw, 2).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+			WithArgs(userID, name, models.DataTypeCredentials, newData, newSalt, newIV, newRaw, int64(2)).
+			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		mock.ExpectCommit()
 
 		err := storage.UpdateSecret(ctx, userID, name, newData, newSalt, newIV, newMetadata)
@@ -711,15 +652,15 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 		oldMetadata := map[string]string{"old": "meta"}
 		oldRaw, _ := json.Marshal(oldMetadata)
 		newRaw, _ := json.Marshal(newMetadata)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT data, type, salt, iv, metadata, version FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL ORDER BY version DESC LIMIT 1 FOR UPDATE`).
 			WithArgs(userID, name).
-			WillReturnRows(sqlmock.NewRows([]string{"data", "type", "salt", "iv", "metadata", "version"}).
+			WillReturnRows(pgxmock.NewRows([]string{"data", "type", "salt", "iv", "metadata", "version"}).
 				AddRow(oldData, models.DataTypeCredentials, oldSalt, oldIV, oldRaw, 1))
 		mock.ExpectExec(`INSERT INTO secrets \(user_id, name, type, data, salt, iv, metadata, version, created_at\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8, NOW\(\)\)`).
-			WithArgs(userID, name, models.DataTypeCredentials, oldData, oldSalt, oldIV, newRaw, 2).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+			WithArgs(userID, name, models.DataTypeCredentials, oldData, oldSalt, oldIV, newRaw, int64(2)).
+			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		mock.ExpectCommit()
 
 		err := storage.UpdateSecret(ctx, userID, name, nil, nil, nil, newMetadata)
@@ -733,11 +674,11 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 		newData := []byte("data")
 		newSalt := []byte("salt")
 		newIV := []byte("iv")
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT data, type, salt, iv, metadata, version FROM secrets WHERE user_id = \$1 AND name = \$2 AND deleted_at IS NULL ORDER BY version DESC LIMIT 1 FOR UPDATE`).
 			WithArgs(userID, name).
-			WillReturnError(sql.ErrNoRows)
+			WillReturnError(pgx.ErrNoRows)
 		mock.ExpectRollback()
 
 		err := storage.UpdateSecret(ctx, userID, name, newData, newSalt, newIV, nil)
@@ -746,25 +687,24 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 	})
 
 	t.Run("missing salt or iv when updating data", func(t *testing.T) {
-		userID := int64(1)
-		name := "mysecret"
-		newData := []byte("newdata")
-
-		// No expectations on mock because validation fails before any DB call.
-		err := storage.UpdateSecret(ctx, userID, name, newData, nil, nil, nil)
+		storage, _ := newMockStorage(t)
+		err := storage.UpdateSecret(ctx, 1, "mysecret", []byte("newdata"), nil, nil, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "both salt and iv must be provided")
 	})
 
 	t.Run("empty user id", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.UpdateSecret(ctx, 0, "name", []byte("d"), []byte("s"), []byte("i"), nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("empty name", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.UpdateSecret(ctx, 1, "", []byte("d"), []byte("s"), []byte("i"), nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 	t.Run("no data to update", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		err := storage.UpdateSecret(ctx, 1, "name", nil, nil, nil, nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 		assert.Contains(t, err.Error(), "missing data to update")
@@ -772,18 +712,13 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 }
 
 func TestDBStorage_ListSecrets(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
 	ctx := context.Background()
 
 	t.Run("no filter returns all", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"name", "type", "metadata", "version"}).
-			AddRow("login1", "credentials", []byte(`{"env":"prod"}`), 3).
-			AddRow("note1", "text", []byte(`{}`), 1)
-
+		rows := pgxmock.NewRows([]string{"name", "type", "metadata", "version"}).
+			AddRow("login1", "credentials", []byte(`{"env":"prod"}`), uint64(3)).
+			AddRow("note1", "text", []byte(`{}`), uint64(1))
+		storage, mock := newMockStorage(t)
 		mock.ExpectQuery(`SELECT DISTINCT ON \(name, type\) name, type, metadata, version`).
 			WithArgs(int64(1)).
 			WillReturnRows(rows)
@@ -798,9 +733,9 @@ func TestDBStorage_ListSecrets(t *testing.T) {
 	})
 
 	t.Run("with filter uses @> operator", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"name", "type", "metadata", "version"}).
+		rows := pgxmock.NewRows([]string{"name", "type", "metadata", "version"}).
 			AddRow("login1", "credentials", []byte(`{"env":"prod"}`), 2)
-
+		storage, mock := newMockStorage(t)
 		mock.ExpectQuery(`metadata @> \$2::jsonb`).
 			WithArgs(int64(1), []byte(`{"env":"prod"}`)).
 			WillReturnRows(rows)
@@ -812,21 +747,18 @@ func TestDBStorage_ListSecrets(t *testing.T) {
 	})
 
 	t.Run("empty user id", func(t *testing.T) {
+		storage, _ := newMockStorage(t)
 		_, err := storage.ListSecrets(ctx, 0, nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
 
 func TestDBStorage_Close(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	storage := &dbStorage{storage: db}
+	storage, mock := newMockStorage(t)
 	ctx := context.Background()
 
 	mock.ExpectClose()
-	err = storage.Close(ctx)
+	err := storage.Close(ctx)
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

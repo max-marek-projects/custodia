@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -17,23 +16,17 @@ import (
 )
 
 // captureLogs captures slog output into a buffer and returns the buffer and a cleanup function.
-func captureLogs(t *testing.T) (*bytes.Buffer, func()) {
+func captureLogs(t *testing.T) (*slog.Logger, *bytes.Buffer) {
 	t.Helper()
 	var buf bytes.Buffer
 	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})
 	testLogger := slog.New(handler)
-	oldLogger := logger.Log
-	logger.Log = testLogger
-	return &buf, func() {
-		logger.Log = oldLogger
-	}
+	return testLogger, &buf
 }
 
 func TestGRPCLoggerInterceptor(t *testing.T) {
-	interceptor := GRPCLoggerInterceptor()
-
 	// Mock handler that returns a response and no error.
 	okHandler := func(ctx context.Context, req any) (any, error) {
 		return "response", nil
@@ -50,15 +43,14 @@ func TestGRPCLoggerInterceptor(t *testing.T) {
 	}
 
 	t.Run("logs successful request", func(t *testing.T) {
-		buf, cleanup := captureLogs(t)
-		defer cleanup()
+		logger, buf := captureLogs(t)
 
 		info := &grpc.UnaryServerInfo{
 			FullMethod: "/test.Service/Method",
 		}
 		ctx := context.Background()
 
-		resp, err := interceptor(ctx, nil, info, okHandler)
+		resp, err := GRPCLoggerInterceptor(logger)(ctx, nil, info, okHandler)
 		require.NoError(t, err)
 		assert.Equal(t, "response", resp)
 
@@ -70,15 +62,14 @@ func TestGRPCLoggerInterceptor(t *testing.T) {
 	})
 
 	t.Run("logs error with gRPC status", func(t *testing.T) {
-		buf, cleanup := captureLogs(t)
-		defer cleanup()
+		logger, buf := captureLogs(t)
 
 		info := &grpc.UnaryServerInfo{
 			FullMethod: "/test.Service/Protected",
 		}
 		ctx := context.Background()
 
-		_, err := interceptor(ctx, nil, info, grpcErrorHandler)
+		_, err := GRPCLoggerInterceptor(logger)(ctx, nil, info, grpcErrorHandler)
 		assert.Error(t, err)
 
 		logOutput := buf.String()
@@ -88,15 +79,14 @@ func TestGRPCLoggerInterceptor(t *testing.T) {
 	})
 
 	t.Run("logs error without gRPC status", func(t *testing.T) {
-		buf, cleanup := captureLogs(t)
-		defer cleanup()
+		logger, buf := captureLogs(t)
 
 		info := &grpc.UnaryServerInfo{
 			FullMethod: "/test.Service/Fail",
 		}
 		ctx := context.Background()
 
-		_, err := interceptor(ctx, nil, info, plainErrorHandler)
+		_, err := GRPCLoggerInterceptor(logger)(ctx, nil, info, plainErrorHandler)
 		assert.Error(t, err)
 
 		logOutput := buf.String()
@@ -106,15 +96,14 @@ func TestGRPCLoggerInterceptor(t *testing.T) {
 	})
 
 	t.Run("logger is called with correct fields", func(t *testing.T) {
-		buf, cleanup := captureLogs(t)
-		defer cleanup()
+		logger, buf := captureLogs(t)
 
 		info := &grpc.UnaryServerInfo{
 			FullMethod: "/test.Service/Detailed",
 		}
 		ctx := context.Background()
 
-		_, err := interceptor(ctx, nil, info, okHandler)
+		_, err := GRPCLoggerInterceptor(logger)(ctx, nil, info, okHandler)
 		require.NoError(t, err)
 
 		logOutput := buf.String()

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 )
 
@@ -19,11 +18,12 @@ type tokenStorage struct {
 	folder   string
 	filename string
 	mu       sync.RWMutex
+	logger   *slog.Logger
 }
 
 // newTokenStorage creates a new tokenStorage instance.
-func newTokenStorage(folder, filename string) *tokenStorage {
-	return &tokenStorage{folder: folder, filename: filename}
+func newTokenStorage(folder, filename string, logger *slog.Logger) *tokenStorage {
+	return &tokenStorage{folder: folder, filename: filename, logger: logger}
 }
 
 // getFilePath returns the full path to the token file, creating the directory if needed.
@@ -39,7 +39,7 @@ func (t *tokenStorage) getFilePath() (string, error) {
 		return "", fmt.Errorf("failed to create tokens file parent directory: %w", err)
 	}
 	tokenFilepath := filepath.Join(appConfigDir, "tokens.json")
-	logger.Log.Debug("token filepath", slog.String("filepath", tokenFilepath))
+	t.logger.Debug("token filepath", slog.String("filepath", tokenFilepath))
 	return tokenFilepath, nil
 }
 

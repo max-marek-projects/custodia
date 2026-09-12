@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,7 +61,7 @@ func TestGetUserIDFromToken(t *testing.T) {
 		validToken, err := tokenObj.SignedString([]byte(testSecret))
 		require.NoError(t, err, "failed to generate valid token for test")
 		// get user ID from valid token
-		uid, err := GetUserIDFromToken(validToken, testSecret)
+		uid, err := GetUserIDFromToken(validToken, testSecret, logger.NewNop())
 		require.NoError(t, err)
 		assert.Equal(t, validUserID, uid)
 	})
@@ -76,7 +77,7 @@ func TestGetUserIDFromToken(t *testing.T) {
 		expiredToken, err := expiredObj.SignedString([]byte(testSecret))
 		require.NoError(t, err)
 		// token should be expired
-		_, err = GetUserIDFromToken(expiredToken, testSecret)
+		_, err = GetUserIDFromToken(expiredToken, testSecret, logger.NewNop())
 		assert.Error(t, err, "expired token should produce error")
 		assert.Contains(t, err.Error(), "token is expired", "error should indicate expiration")
 	})
@@ -92,13 +93,13 @@ func TestGetUserIDFromToken(t *testing.T) {
 		tokenWithZeroUserID, err := zeroObj.SignedString([]byte(testSecret))
 		require.NoError(t, err)
 		// should be rejected
-		_, err = GetUserIDFromToken(tokenWithZeroUserID, testSecret)
+		_, err = GetUserIDFromToken(tokenWithZeroUserID, testSecret, logger.NewNop())
 		assert.Error(t, err, "token with empty user ID should be rejected")
 		assert.Equal(t, "userID is empty", err.Error())
 	})
 
 	t.Run("returns error for malformed token", func(t *testing.T) {
-		_, err := GetUserIDFromToken("this-is-not-a-jwt", testSecret)
+		_, err := GetUserIDFromToken("this-is-not-a-jwt", testSecret, logger.NewNop())
 		assert.Error(t, err)
 	})
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/max-marek-projects/custodia/internal/requests"
 	"github.com/max-marek-projects/custodia/internal/service"
@@ -117,7 +118,7 @@ func TestGRPCHandler_RegisterUser(t *testing.T) {
 					})).
 					Return(tt.svcResp, tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.RegisterUser(ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -240,7 +241,7 @@ func TestGRPCHandler_LoginUser(t *testing.T) {
 					})).
 					Return(tt.svcResp, tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.LoginUser(ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -346,7 +347,7 @@ func TestGRPCHandler_Refresh(t *testing.T) {
 					RefreshAccess(ctx, tt.req.GetUserId(), tt.req.GetRefreshToken(), tt.req.GetDeviceName()).
 					Return(tt.svcToken, tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.Refresh(ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -426,7 +427,7 @@ func TestGRPCHandler_LogoutDevice(t *testing.T) {
 					Logout(tt.ctx, userID, tt.req.GetDeviceName()).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.LogoutDevice(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -477,7 +478,7 @@ func TestGRPCHandler_LogoutAllDevices(t *testing.T) {
 					LogoutAllDevices(tt.ctx, userID).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.LogoutAllDevices(tt.ctx, &proto.LogoutAllDevicesRequest{})
 
 			if tt.want.code == codes.OK {
@@ -596,7 +597,7 @@ func TestGRPCHandler_CreateSecret(t *testing.T) {
 					CreateSecret(tt.ctx, userID, dataType, tt.req.GetName(), tt.req.GetData(), tt.req.GetSalt(), tt.req.GetIv(), tt.req.GetMetadata()).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.CreateSecret(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -722,7 +723,7 @@ func TestGRPCHandler_GetSecret(t *testing.T) {
 					GetSecret(tt.ctx, userID, dataType, tt.req.GetName(), tt.req.GetVersion()).
 					Return(tt.svcData, tt.svcSalt, tt.svcIv, tt.svcMeta, tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.GetSecret(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -794,7 +795,7 @@ func TestGRPCHandler_RollbackSecret(t *testing.T) {
 				return r
 			}(),
 			svcErr: service.ErrRollbackNotPossible,
-			want:   want{code: codes.NotFound, message: "no version to roll back"},
+			want:   want{code: codes.FailedPrecondition, message: "no version to roll back"},
 		},
 		{
 			name: "secret not found",
@@ -828,7 +829,7 @@ func TestGRPCHandler_RollbackSecret(t *testing.T) {
 					RollbackSecret(tt.ctx, userID, tt.req.GetName()).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.RollbackSecret(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -904,7 +905,7 @@ func TestGRPCHandler_DeleteSecret(t *testing.T) {
 					DeleteSecret(tt.ctx, userID, tt.req.GetName()).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.DeleteSecret(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -999,7 +1000,7 @@ func TestGRPCHandler_UpdateSecretData(t *testing.T) {
 					UpdateSecretData(tt.ctx, userID, tt.req.GetName(), tt.req.GetData(), tt.req.GetSalt(), tt.req.GetIv()).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.UpdateSecretData(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -1096,7 +1097,7 @@ func TestGRPCHandler_UpdateSecretMetadata(t *testing.T) {
 					UpdateSecretMetadata(tt.ctx, userID, tt.req.GetName(), tt.req.GetMetadata()).
 					Return(tt.svcErr)
 			}
-			h := NewGRPCHandler(mockSvc)
+			h := NewGRPCHandler(mockSvc, logger.NewNop())
 			resp, err := h.UpdateSecretMetadata(tt.ctx, tt.req)
 
 			if tt.want.code == codes.OK {
@@ -1124,7 +1125,7 @@ func TestGRPCHandler_ListSecrets(t *testing.T) {
 				{Name: "login1", Type: models.DataTypeCredentials, LatestVersion: 2},
 			}, nil)
 
-		h := NewGRPCHandler(mockSvc)
+		h := NewGRPCHandler(mockSvc, logger.NewNop())
 		req := &proto.ListSecretsRequest{}
 		req.SetMetadata(map[string]string{"env": "prod"})
 		resp, err := h.ListSecrets(ctx, req)
@@ -1135,7 +1136,7 @@ func TestGRPCHandler_ListSecrets(t *testing.T) {
 
 	t.Run("user id missing", func(t *testing.T) {
 		mockSvc := NewMockService(t)
-		h := NewGRPCHandler(mockSvc)
+		h := NewGRPCHandler(mockSvc, logger.NewNop())
 		_, err := h.ListSecrets(context.Background(), &proto.ListSecretsRequest{})
 		assert.Error(t, err)
 		st, _ := status.FromError(err)
@@ -1147,7 +1148,7 @@ func TestGRPCHandler_Close(t *testing.T) {
 	mockService := NewMockService(t)
 	mockService.EXPECT().Close(mock.Anything).Return(nil)
 
-	h := NewGRPCHandler(mockService)
+	h := NewGRPCHandler(mockService, logger.NewNop())
 	err := h.Close(context.Background())
 	assert.NoError(t, err)
 	mockService.AssertExpectations(t)

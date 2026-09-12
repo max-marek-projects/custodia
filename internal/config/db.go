@@ -11,9 +11,9 @@ type DBConf struct {
 	// ForceMigrations forces migrations to run even if the schema is dirty.
 	ForceMigrations bool
 	// MaxOpenConns is the maximum number of open connections to the database.
-	MaxOpenConns int
+	MaxOpenConns int32
 	// MaxIdleConns is the maximum number of idle connections in the pool.
-	MaxIdleConns int
+	MaxIdleConns int32
 	// ConnMaxLifetime is the maximum amount of time a connection may be reused.
 	ConnMaxLifetime time.Duration
 	// MigrationsPath is the filesystem path to the directory containing migration files.

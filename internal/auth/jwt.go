@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/max-marek-projects/custodia/internal/logger"
 )
 
 // Claims represents the JWT claims containing a user ID.
@@ -51,7 +50,7 @@ func GenerateToken(userID int64, secretKey string, lifespan time.Duration) (stri
 //   - int64: The user ID extracted from the token.
 //   - error: Non-nil if the token is invalid, expired, malformed,
 //     signed with a different method, or contains an empty user ID.
-func GetUserIDFromToken(token string, secretKey string) (int64, error) {
+func GetUserIDFromToken(token string, secretKey string, logger *slog.Logger) (int64, error) {
 	claims := &Claims{}
 	tokenData, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodHS256 {
@@ -68,6 +67,6 @@ func GetUserIDFromToken(token string, secretKey string) (int64, error) {
 	if claims.UserID == 0 {
 		return 0, ErrEmptyUserID
 	}
-	logger.Log.Debug("Extracted user id from token", slog.Int64("user_id", claims.UserID))
+	logger.Debug("Extracted user id from token", slog.Int64("user_id", claims.UserID))
 	return claims.UserID, nil
 }

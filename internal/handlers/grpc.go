@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/max-marek-projects/custodia/internal/requests"
 	"github.com/max-marek-projects/custodia/internal/service"
@@ -18,7 +17,8 @@ import (
 // GRPCHandler implements the Custodia gRPC service.
 type GRPCHandler struct {
 	proto.UnimplementedCustodiaServer
-	service service.Service
+	service Service
+	logger  *slog.Logger
 }
 
 // NewGRPCHandler creates a new GRPCHandler instance.
@@ -28,8 +28,8 @@ type GRPCHandler struct {
 //
 // Returns:
 //   - *GRPCHandler: the initialized handler.
-func NewGRPCHandler(srv service.Service) *GRPCHandler {
-	return &GRPCHandler{service: srv}
+func NewGRPCHandler(srv Service, logger *slog.Logger) *GRPCHandler {
+	return &GRPCHandler{service: srv, logger: logger}
 }
 
 // Close closes the underlying service.
@@ -72,7 +72,7 @@ func (h *GRPCHandler) RegisterUser(
 		if errors.Is(err, service.ErrLoginAlreadyTaken) {
 			return nil, status.Error(codes.AlreadyExists, err.Error())
 		}
-		logger.Log.Error("Failed to register user", slog.Any("error", err))
+		h.logger.Error("Failed to register user", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.LoginResponse{}
@@ -114,7 +114,7 @@ func (h *GRPCHandler) LoginUser(
 		if errors.Is(err, service.ErrWrongUsernamePassword) {
 			return nil, status.Error(codes.PermissionDenied, "Wrong username or password")
 		}
-		logger.Log.Error("Failed to login user", slog.Any("error", err))
+		h.logger.Error("Failed to login user", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.LoginResponse{}
@@ -151,7 +151,7 @@ func (h *GRPCHandler) Refresh(
 		if errors.Is(err, service.ErrRefreshTokenExpiredOrInvalid) {
 			return nil, status.Error(codes.PermissionDenied, "Refresh token expired or invalid")
 		}
-		logger.Log.Error("Failed to refresh token", slog.Any("error", err))
+		h.logger.Error("Failed to refresh token", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.RefreshResponse{}
@@ -175,7 +175,7 @@ func (h *GRPCHandler) LogoutDevice(
 ) (*proto.LogoutDeviceResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.Logout(ctx, userID, req.GetDeviceName())
@@ -183,7 +183,7 @@ func (h *GRPCHandler) LogoutDevice(
 		if errors.Is(err, service.ErrInvalidArgument) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		logger.Log.Error("Failed to logout user", slog.Any("error", err))
+		h.logger.Error("Failed to logout user", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.LogoutDeviceResponse{}, nil
@@ -205,7 +205,7 @@ func (h *GRPCHandler) LogoutAllDevices(
 ) (*proto.LogoutAllDevicesResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.LogoutAllDevices(ctx, userID)
@@ -213,7 +213,7 @@ func (h *GRPCHandler) LogoutAllDevices(
 		if errors.Is(err, service.ErrInvalidArgument) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		logger.Log.Error("Failed to logout user from all devices", slog.Any("error", err))
+		h.logger.Error("Failed to logout user from all devices", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.LogoutAllDevicesResponse{}, nil
@@ -237,12 +237,12 @@ func (h *GRPCHandler) CreateSecret(
 ) (*proto.CreateSecretResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	dataType, found := models.ProtoDataTypeToString[req.GetType()]
 	if !found {
-		logger.Log.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
+		h.logger.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
 		return nil, status.Error(codes.InvalidArgument, "Invalid data type")
 	}
 	err := h.service.CreateSecret(ctx, userID, dataType, req.GetName(), req.GetData(), req.GetSalt(), req.GetIv(), req.GetMetadata())
@@ -253,7 +253,7 @@ func (h *GRPCHandler) CreateSecret(
 		if errors.Is(err, service.ErrInvalidArgument) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		logger.Log.Error("Failed to create secret", slog.Any("error", err))
+		h.logger.Error("Failed to create secret", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.CreateSecretResponse{}, nil
@@ -275,12 +275,12 @@ func (h *GRPCHandler) GetSecret(
 ) (*proto.GetSecretResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	dataType, found := models.ProtoDataTypeToString[req.GetType()]
 	if !found {
-		logger.Log.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
+		h.logger.Error("Unknown data type", slog.Int("data type", int(req.GetType())))
 		return nil, status.Error(codes.InvalidArgument, "Invalid data type")
 	}
 	data, salt, iv, metadata, err := h.service.GetSecret(ctx, userID, dataType, req.GetName(), req.GetVersion())
@@ -291,7 +291,7 @@ func (h *GRPCHandler) GetSecret(
 		if errors.Is(err, service.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
-		logger.Log.Error("Failed to get secret", slog.Any("error", err))
+		h.logger.Error("Failed to get secret", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.GetSecretResponse{}
@@ -318,7 +318,7 @@ func (h *GRPCHandler) RollbackSecret(
 ) (*proto.RollbackSecretResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.RollbackSecret(ctx, userID, req.GetName())
@@ -327,12 +327,12 @@ func (h *GRPCHandler) RollbackSecret(
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		if errors.Is(err, service.ErrRollbackNotPossible) {
-			return nil, status.Error(codes.NotFound, "no version to roll back")
+			return nil, status.Error(codes.FailedPrecondition, "no version to roll back")
 		}
 		if errors.Is(err, service.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
-		logger.Log.Error("Failed to rollback secret", slog.Any("error", err))
+		h.logger.Error("Failed to rollback secret", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.RollbackSecretResponse{}, nil
@@ -354,7 +354,7 @@ func (h *GRPCHandler) DeleteSecret(
 ) (*proto.DeleteSecretResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.DeleteSecret(ctx, userID, req.GetName())
@@ -365,7 +365,7 @@ func (h *GRPCHandler) DeleteSecret(
 		if errors.Is(err, service.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "cred not found")
 		}
-		logger.Log.Error("Failed to delete secret", slog.Any("error", err))
+		h.logger.Error("Failed to delete secret", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.DeleteSecretResponse{}, nil
@@ -387,7 +387,7 @@ func (h *GRPCHandler) UpdateSecretData(
 ) (*proto.UpdateSecretDataResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.UpdateSecretData(ctx, userID, req.GetName(), req.GetData(), req.GetSalt(), req.GetIv())
@@ -398,7 +398,7 @@ func (h *GRPCHandler) UpdateSecretData(
 		if errors.Is(err, service.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "cred not found")
 		}
-		logger.Log.Error("Failed to update secret", slog.Any("error", err))
+		h.logger.Error("Failed to update secret", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.UpdateSecretDataResponse{}, nil
@@ -420,7 +420,7 @@ func (h *GRPCHandler) UpdateSecretMetadata(
 ) (*proto.UpdateSecretMetadataResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	err := h.service.UpdateSecretMetadata(ctx, userID, req.GetName(), req.GetMetadata())
@@ -431,7 +431,7 @@ func (h *GRPCHandler) UpdateSecretMetadata(
 		if errors.Is(err, service.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "cred not found")
 		}
-		logger.Log.Error("Failed to update secret", slog.Any("error", err))
+		h.logger.Error("Failed to update secret", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	return &proto.UpdateSecretMetadataResponse{}, nil
@@ -453,7 +453,7 @@ func (h *GRPCHandler) ListSecrets(
 ) (*proto.ListSecretsResponse, error) {
 	userID, found := requests.GetUserIDFromContext(ctx)
 	if !found {
-		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		h.logger.Error("Failed to get user id from context. Interceptor error")
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	filter := req.GetMetadata()
@@ -462,7 +462,7 @@ func (h *GRPCHandler) ListSecrets(
 		if errors.Is(err, service.ErrInvalidArgument) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		logger.Log.Error("Failed to list secrets", slog.Any("error", err))
+		h.logger.Error("Failed to list secrets", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 	response := &proto.ListSecretsResponse{}

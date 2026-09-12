@@ -79,7 +79,7 @@ func LoadConfig() (config *Config, err error) {
 	err = godotenv.Load()
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Log.Info("No .env file found, using environment variables and flags")
+			fmt.Printf("No .env file found, using environment variables and flags")
 		} else {
 			return nil, fmt.Errorf("Failed to load .env file: %w", err)
 		}

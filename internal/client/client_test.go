@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/max-marek-projects/custodia/internal/utils"
 	"github.com/max-marek-projects/custodia/pkg/proto"
@@ -22,7 +23,7 @@ func setupTest(t *testing.T) (*client, *MockClient, *tokenStorage, *Session) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 	t.Setenv("APPDATA", tmpDir)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	session := &Session{}
 	mockClient := NewMockClient(t)
 

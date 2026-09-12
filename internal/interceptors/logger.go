@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/max-marek-projects/custodia/internal/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,7 +21,7 @@ import (
 //
 // Returns:
 //   - grpc.UnaryServerInterceptor: the interceptor function.
-func GRPCLoggerInterceptor() grpc.UnaryServerInterceptor {
+func GRPCLoggerInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req any,
@@ -44,7 +43,7 @@ func GRPCLoggerInterceptor() grpc.UnaryServerInterceptor {
 			}
 		}
 
-		logger.Log.Info(
+		logger.Info(
 			"Processed gRPC request",
 			slog.String("method", info.FullMethod),
 			slog.Duration("duration", duration),

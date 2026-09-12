@@ -10,11 +10,6 @@ import (
 	"os"
 )
 
-// Log is the global logger instance used throughout the application.
-// It is initialized with a no‑op logger (discarding all output) until
-// Initialize is called with a valid level.
-var Log *slog.Logger
-
 // Level represents a log level string (DEBUG, INFO, WARN, ERROR).
 type Level string
 
@@ -61,30 +56,31 @@ func (l Level) MarshalText() ([]byte, error) {
 	return []byte(l), nil
 }
 
-// Initialize sets up the global logger (Log) with the specified log level.
-// It configures a JSON handler writing to os.Stdout and also sets the
-// default slog logger for package‑level functions.
+// New creates a new slog.Logger with a JSON handler writing to os.Stdout
+// and sets it as the slog default logger.
 //
 // Parameters:
 //   - level: the log level (one of LevelDebug, LevelInfo, LevelWarn, LevelError).
 //
 // Returns:
-//   - error: nil on success, or an error if the level is invalid.
-func Initialize(level Level) error {
+//   - *slog.Logger: the root logger instance.
+//   - error: non-nil if the level is invalid.
+func New(level Level) (*slog.Logger, error) {
 	lvl, exists := logLevels[level]
 	if !exists {
-		return fmt.Errorf("failed to initialize logger: invalid log level: %s", level)
+		return nil, fmt.Errorf("invalid log level: %s", level)
 	}
 	opts := &slog.HandlerOptions{Level: lvl}
 	handler := slog.NewJSONHandler(os.Stdout, opts)
-	Log = slog.New(handler)
-	slog.SetDefault(Log)
-	return nil
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+	return logger, nil
 }
 
-// init sets up a no‑op logger (writing to io.Discard) as the initial default.
-func init() {
+// NewNop returns a logger that discards all output. Useful as a default
+// dependency in constructors when no logger is provided (e.g., in tests).
+func NewNop() *slog.Logger {
 	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
 	handler := slog.NewJSONHandler(io.Discard, opts)
-	Log = slog.New(handler)
+	return slog.New(handler)
 }

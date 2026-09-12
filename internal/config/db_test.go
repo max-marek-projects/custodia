@@ -15,8 +15,8 @@ func TestNewDBConf(t *testing.T) {
 
 		assert.Equal(t, dbURL, cfg.URL)
 		assert.Equal(t, force, cfg.ForceMigrations)
-		assert.Equal(t, 10, cfg.MaxOpenConns)
-		assert.Equal(t, 5, cfg.MaxIdleConns)
+		assert.Equal(t, int32(10), cfg.MaxOpenConns)
+		assert.Equal(t, int32(5), cfg.MaxIdleConns)
 		assert.Equal(t, 5*time.Minute, cfg.ConnMaxLifetime)
 		assert.Equal(t, "./migrations", cfg.MigrationsPath)
 	})
@@ -26,8 +26,8 @@ func TestNewDBConf(t *testing.T) {
 		assert.Equal(t, "", cfg.URL)
 		assert.False(t, cfg.ForceMigrations)
 		// Defaults unchanged
-		assert.Equal(t, 10, cfg.MaxOpenConns)
-		assert.Equal(t, 5, cfg.MaxIdleConns)
+		assert.Equal(t, int32(10), cfg.MaxOpenConns)
+		assert.Equal(t, int32(5), cfg.MaxIdleConns)
 		assert.Equal(t, 5*time.Minute, cfg.ConnMaxLifetime)
 		assert.Equal(t, "./migrations", cfg.MigrationsPath)
 	})
@@ -41,8 +41,8 @@ func TestNewDBConf(t *testing.T) {
 		cfg.MigrationsPath = "/custom/path"
 
 		assert.Equal(t, "new-url", cfg.URL)
-		assert.Equal(t, 20, cfg.MaxOpenConns)
-		assert.Equal(t, 10, cfg.MaxIdleConns)
+		assert.Equal(t, int32(20), cfg.MaxOpenConns)
+		assert.Equal(t, int32(10), cfg.MaxIdleConns)
 		assert.Equal(t, 10*time.Minute, cfg.ConnMaxLifetime)
 		assert.Equal(t, "/custom/path", cfg.MigrationsPath)
 	})

@@ -1,4 +1,4 @@
-package repository
+package service
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 // Storage defines the interface for data persistence operations.
 //
-//go:generate mockery --name=Storage --output=../service  --outpkg=service --filename=mock_storage.gen_test.go --with-expecter --structname=MockStorage
+//go:generate mockery --name=Storage --output=. --outpkg=service --filename=mock_storage.gen_test.go --with-expecter --structname=MockStorage
 type Storage interface {
 	// User management
 	RegisterUser(ctx context.Context, userData models.UserData) (int64, error)

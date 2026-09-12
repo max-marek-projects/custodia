@@ -49,14 +49,14 @@ func run() error {
 		return err
 	}
 	// Initialize the global logger.
-	err = logger.Initialize(configData.LoggerLevel)
+	log, err := logger.New(configData.LoggerLevel)
 	if err != nil {
 		return err
 	}
 	// Create database storage (runs migrations).
-	store, err := repository.NewDBStorage(configData.DatabaseURI, configData.ForceMigrations)
+	store, err := repository.NewDBStorage(configData.DatabaseURI, configData.ForceMigrations, log)
 	if err != nil {
-		logger.Log.Error("Unable to create storage", slog.Any("error", err))
+		log.Error("Unable to create storage", slog.Any("error", err))
 		return err
 	}
 	// Create the business logic service.
@@ -67,15 +67,15 @@ func run() error {
 		configData.RefreshTokenLifespan.Duration(),
 	)
 	if err != nil {
-		logger.Log.Error("Unable to create service handler", slog.Any("error", err))
+		log.Error("Unable to create service handler", slog.Any("error", err))
 		return err
 	}
-	grpcHandler := handlers.NewGRPCHandler(service)
+	grpcHandler := handlers.NewGRPCHandler(service, log)
 
 	// Prepare TLS configuration if HTTPS is enabled.
-	tlsConfig, err := server.CreateTLSConf(configData.CertPath, configData.KeyPath)
+	tlsConfig, err := server.CreateTLSConf(configData.CertPath, configData.KeyPath, log)
 	if err != nil {
-		logger.Log.Error("failed to load TLS certificates", slog.Any("error", err))
+		log.Error("failed to load TLS certificates", slog.Any("error", err))
 		return err
 	}
 	// Create the gRPC server.
@@ -86,9 +86,10 @@ func run() error {
 		configData.WriteTimeout.Duration(),
 		configData.CookieSecret,
 		tlsConfig,
+		log,
 	)
 	if err != nil {
-		logger.Log.Error("Unable to initialize server", slog.Any("error", err))
+		log.Error("Unable to initialize server", slog.Any("error", err))
 		return err
 	}
 
@@ -106,22 +107,22 @@ func run() error {
 	// Wait for either a shutdown signal or a server error.
 	select {
 	case sig := <-stop:
-		logger.Log.Info("Shutdown signal received", slog.String("signal", sig.String()))
+		log.Info("Shutdown signal received", slog.String("signal", sig.String()))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		// Gracefully stop the gRPC server.
 		if err := grpcSrv.Shutdown(ctx); err != nil {
-			logger.Log.Error("gRPC graceful shutdown failed", slog.Any("error", err))
+			log.Error("gRPC graceful shutdown failed", slog.Any("error", err))
 			return err
 		} else {
-			logger.Log.Info("gRPC server stopped gracefully")
+			log.Info("gRPC server stopped gracefully")
 		}
 
 	case err := <-grpcErr:
 		if err != nil {
-			logger.Log.Error("gRPC server stopped with error", slog.Any("error", err))
+			log.Error("gRPC server stopped with error", slog.Any("error", err))
 			return err
 		}
 	}

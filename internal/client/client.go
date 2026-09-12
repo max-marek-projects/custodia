@@ -3,8 +3,10 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -27,6 +29,7 @@ type client struct {
 	client     proto.CustodiaClient
 	storage    *tokenStorage
 	session    *Session
+	logger     *slog.Logger
 }
 
 // NewHandler creates a new GRPCHandler.
@@ -35,14 +38,26 @@ func NewClient(session *Session) (*client, *config.ClientConf, context.Context, 
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to initialize configuration: %w", err)
 	}
-	err = logger.Initialize(configuration.LoggerLevel)
+	logger, err := logger.New(configuration.LoggerLevel)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	clientItem := &client{storage: newTokenStorage(configuration.ConfigFolder, configuration.TokenFilename), session: session}
+	clientItem := &client{storage: newTokenStorage(configuration.ConfigFolder, configuration.TokenFilename, logger), session: session, logger: logger}
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
+		MinVersion: tls.VersionTLS12,
 	}
+	if configuration.CertPath == "" {
+		return nil, nil, nil, nil, fmt.Errorf("certificate path must not be empty")
+	}
+	caCert, err := os.ReadFile(configuration.CertPath)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to read CA certificate: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caCert) {
+		return nil, nil, nil, nil, fmt.Errorf("failed to append CA certificate from %s", configuration.CertPath)
+	}
+	tlsConfig.RootCAs = pool
 	conn, err := grpc.NewClient(
 		configuration.ServerAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),

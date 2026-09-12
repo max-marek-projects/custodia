@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/max-marek-projects/custodia/internal/handlers"
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -20,17 +21,17 @@ const testSecretKey = "test-secret-key-abcdefghijklmnopqrstuvwxyz" // at least 3
 func TestCreateTLSConf(t *testing.T) {
 
 	t.Run("invalid certificate path", func(t *testing.T) {
-		_, err := CreateTLSConf("nonexistent.crt", "nonexistent.key")
+		_, err := CreateTLSConf("nonexistent.crt", "nonexistent.key", logger.NewNop())
 		assert.Error(t, err)
 	})
 }
 
 // TestNewServer tests server creation with and without TLS.
 func TestNewServer(t *testing.T) {
-	handler := handlers.NewGRPCHandler(NewMockService(t))
+	handler := handlers.NewGRPCHandler(NewMockService(t), logger.NewNop())
 
 	t.Run("without TLS", func(t *testing.T) {
-		svr, err := NewServer(testAddr, handler, 0, 0, testSecretKey, nil)
+		svr, err := NewServer(testAddr, handler, 0, 0, testSecretKey, nil, logger.NewNop())
 		require.NoError(t, err)
 		assert.NotNil(t, svr)
 		assert.NotNil(t, svr.Server)
@@ -38,12 +39,12 @@ func TestNewServer(t *testing.T) {
 	})
 
 	t.Run("empty secret key", func(t *testing.T) {
-		_, err := NewServer(testAddr, handler, 0, 0, "", nil)
+		_, err := NewServer(testAddr, handler, 0, 0, "", nil, logger.NewNop())
 		assert.Error(t, err)
 	})
 
 	t.Run("too short secret key", func(t *testing.T) {
-		_, err := NewServer(testAddr, handler, 0, 0, "too-short-secret-key", nil)
+		_, err := NewServer(testAddr, handler, 0, 0, "too-short-secret-key", nil, logger.NewNop())
 		assert.Error(t, err)
 	})
 }
@@ -52,8 +53,8 @@ func TestNewServer(t *testing.T) {
 func TestServer_ListenAndServe_Shutdown(t *testing.T) {
 	mockService := NewMockService(t)
 	mockService.EXPECT().Close(mock.Anything).Return(nil)
-	handler := handlers.NewGRPCHandler(mockService)
-	svr, err := NewServer("127.0.0.1:0", handler, 0, 0, testSecretKey, nil)
+	handler := handlers.NewGRPCHandler(mockService, logger.NewNop())
+	svr, err := NewServer("127.0.0.1:0", handler, 0, 0, testSecretKey, nil, logger.NewNop())
 	require.NoError(t, err)
 
 	errCh := make(chan error, 1)

@@ -1,8 +1,6 @@
 package logger
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"log/slog"
 	"testing"
@@ -63,10 +61,6 @@ func TestLevelMarshalUnmarshal(t *testing.T) {
 }
 
 func TestInitialize(t *testing.T) {
-	// Save old logger to restore after test.
-	oldLog := Log
-	defer func() { Log = oldLog; slog.SetDefault(oldLog) }()
-
 	tests := []struct {
 		name    string
 		level   Level
@@ -81,23 +75,19 @@ func TestInitialize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := Initialize(tt.level)
+			logger, err := New(tt.level)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "invalid log level")
 			} else {
 				require.NoError(t, err)
-				assert.NotNil(t, Log)
-				assert.Equal(t, Log, slog.Default())
+				assert.NotNil(t, logger)
+				assert.Equal(t, logger, slog.Default())
 				// Check that the handler uses JSON and correct level.
-				assert.IsType(t, &slog.JSONHandler{}, Log.Handler())
+				assert.IsType(t, &slog.JSONHandler{}, logger.Handler())
 			}
 		})
 	}
-}
-
-func TestInitNoopLogger(t *testing.T) {
-	assert.NotNil(t, Log)
 }
 
 func TestFlagIntegration(t *testing.T) {
@@ -108,23 +98,4 @@ func TestFlagIntegration(t *testing.T) {
 	err := fs.Parse([]string{"-level", "DEBUG"})
 	require.NoError(t, err)
 	assert.Equal(t, LevelDebug, l)
-}
-
-func TestLoggerOutput(t *testing.T) {
-	oldLog := Log
-	defer func() { Log = oldLog; slog.SetDefault(oldLog) }()
-
-	var buf bytes.Buffer
-	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})
-	Log = slog.New(handler)
-	slog.SetDefault(Log)
-
-	Log.Info("test msg", "key", "value")
-
-	var output map[string]any
-	err := json.Unmarshal(buf.Bytes(), &output)
-	require.NoError(t, err)
-	assert.Equal(t, "test msg", output["msg"])
-	assert.Equal(t, "INFO", output["level"])
-	assert.Equal(t, "value", output["key"])
 }

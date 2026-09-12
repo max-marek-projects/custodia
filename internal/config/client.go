@@ -34,6 +34,8 @@ type ClientConf struct {
 	LoggerLevel logger.Level `json:"logger_level"`
 	// SecretsTTL is the duration for which secrets are cached locally.
 	SecretsTTL models.Duration `json:"secrets_ttl"`
+	// CertPath is the path to a certificate file for client tls configuration.
+	CertPath string `json:"cert_path"`
 }
 
 // NewClientConf creates a new ClientConf with default values,
@@ -57,6 +59,7 @@ func NewClientConf() (*ClientConf, error) {
 		SessionTTL:     models.Duration(15 * time.Minute),
 		LoggerLevel:    logger.LevelInfo,
 		SecretsTTL:     models.Duration(30 * time.Second),
+		CertPath:       "server.pem",
 	}
 	// Determine the configuration directory.
 	var appConfigDir string
@@ -79,7 +82,7 @@ func NewClientConf() (*ClientConf, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Log.Info("config file not found, using defaults", "path", configPath)
+			fmt.Printf("config file not found (%s), using defaults\n", configPath)
 			return configuration, nil
 		}
 		return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -89,6 +92,6 @@ func NewClientConf() (*ClientConf, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	logger.Log.Info("configuration loaded", "path", configPath)
+	fmt.Printf("configuration loaded (%s)\n", configPath)
 	return configuration, nil
 }

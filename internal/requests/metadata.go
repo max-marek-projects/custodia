@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/max-marek-projects/custodia/internal/auth"
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -48,7 +49,7 @@ func GetUserIDFromMetadata(
 	if token == "" {
 		return 0, ErrEmptyToken
 	}
-	return auth.GetUserIDFromToken(token, secretKey)
+	return auth.GetUserIDFromToken(token, secretKey, logger.NewNop())
 }
 
 // SetAccessTokenToMetadata adds the Bearer access token to the outgoing gRPC

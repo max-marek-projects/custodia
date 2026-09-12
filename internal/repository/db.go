@@ -10,13 +10,15 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/max-marek-projects/custodia/internal/config"
-	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // connect establishes a connection to the database using the provided DBConf.
@@ -24,28 +26,45 @@ import (
 //   - cfg: configuration containing the database URL and pool settings.
 //
 // Returns a ready-to-use sql.DB connection or an error if connection or ping fails.
-func connect(cfg *config.DBConf) (*sql.DB, error) {
-	db, err := sql.Open("pgx", cfg.URL)
+// connect establishes a connection to the database using the provided DBConf.
+// It returns a pgxpool.Pool, which is a concurrency-safe connection pool.
+// Parameters:
+//   - ctx: context for the connection setup.
+//   - cfg: configuration containing the database URL and pool settings.
+//
+// Returns a ready-to-use pgxpool.Pool or an error if connection or ping fails.
+func connect(ctx context.Context, cfg *config.DBConf) (*pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(cfg.URL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open a connection to the DB: %w", err)
+		return nil, fmt.Errorf("failed to parse database URL: %w", err)
 	}
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
+	poolConfig.MaxConns = cfg.MaxOpenConns
+	poolConfig.MinConns = cfg.MaxIdleConns
+	poolConfig.MaxConnLifetime = cfg.ConnMaxLifetime
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+	// Ping to verify the connection.
+	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("connection to the DB is not ready: %w", err)
 	}
+	return pool, nil
+}
 
-	return db, nil
+type DBPool interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+	BeginTx(context.Context, pgx.TxOptions) (pgx.Tx, error)
+	Close()
 }
 
 // dbStorage implements Storage interface using PostgreSQL.
 type dbStorage struct {
-	storage *sql.DB
+	storage DBPool
 	config  *config.DBConf
+	logger  *slog.Logger
 }
 
 // NewDBStorage creates a new database storage instance and runs migrations.
@@ -53,17 +72,19 @@ type dbStorage struct {
 //   - dbURL: PostgreSQL connection string.
 //
 // Returns the storage instance or an error if connection or migration fails.
-func NewDBStorage(dbURL string, forceMigrations bool) (*dbStorage, error) {
+func NewDBStorage(dbURL string, forceMigrations bool, logger *slog.Logger) (*dbStorage, error) {
+	ctx := context.Background()
 	config := config.NewDBConf(dbURL, forceMigrations)
-	storage, err := connect(config)
+	storage, err := connect(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create DB storage: %w", err)
 	}
 	dbs := &dbStorage{
 		storage: storage,
 		config:  config,
+		logger:  logger,
 	}
-	err = dbs.runMigrations()
+	err = dbs.runMigrations(storage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -71,11 +92,19 @@ func NewDBStorage(dbURL string, forceMigrations bool) (*dbStorage, error) {
 }
 
 // runMigrations applies database migrations from the configured path.
-func (dbs *dbStorage) runMigrations() error {
-	logger.Log.Info("Running migrations", slog.String("path", dbs.config.MigrationsPath))
-	m, err := migrate.New(
+func (dbs *dbStorage) runMigrations(pool *pgxpool.Pool) error {
+	db := stdlib.OpenDBFromPool(pool)
+	defer db.Close()
+
+	dbs.logger.Info("Running migrations", slog.String("path", dbs.config.MigrationsPath))
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create postgres migration driver: %w", err)
+	}
+	m, err := migrate.NewWithDatabaseInstance(
 		"file://"+dbs.config.MigrationsPath,
-		dbs.config.URL,
+		"postgres",
+		driver,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create migrations: %w", err)
@@ -83,14 +112,14 @@ func (dbs *dbStorage) runMigrations() error {
 	defer m.Close()
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		if errDirty, ok := errors.AsType[migrate.ErrDirty](err); ok && dbs.config.ForceMigrations {
-			logger.Log.Warn("Database is dirty, forcing to previous version", slog.Int("dirty_version", errDirty.Version))
+			dbs.logger.Warn("Database is dirty, forcing to previous version", slog.Int("dirty_version", errDirty.Version))
 			if err := m.Force(max(errDirty.Version-1, 1)); err != nil {
 				return fmt.Errorf("failed to force version: %w", err)
 			}
-			if err := dbs.runMigrations(); err != nil {
+			if err := dbs.runMigrations(pool); err != nil {
 				return fmt.Errorf("failed to run migrations after force: %w", err)
 			}
-			logger.Log.Info("Migrations applied successfully after force")
+			dbs.logger.Info("Migrations applied successfully after force")
 			return nil
 		}
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -102,7 +131,8 @@ func (dbs *dbStorage) runMigrations() error {
 // It implements the io.Closer interface.
 // Returns an error if closing fails.
 func (dbs *dbStorage) Close(ctx context.Context) error {
-	return dbs.storage.Close()
+	dbs.storage.Close()
+	return nil
 }
 
 // ========== USERS MANAGEMENT ===========
@@ -126,7 +156,7 @@ func (dbs *dbStorage) RegisterUser(ctx context.Context, userData models.UserData
 		ON CONFLICT (username) DO NOTHING
 		RETURNING id;
 	`
-	err := dbs.storage.QueryRowContext(ctx, query, userData.Login, userData.PasswordHash).Scan(&userID)
+	err := dbs.storage.QueryRow(ctx, query, userData.Login, userData.PasswordHash).Scan(&userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, ErrAlreadyInStorage
@@ -148,7 +178,7 @@ func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, []
         SELECT id, password_hash FROM users
 		WHERE username = $1;
 	`
-	err := dbs.storage.QueryRowContext(ctx, query, username).Scan(&userID, &hashedPassword)
+	err := dbs.storage.QueryRow(ctx, query, username).Scan(&userID, &hashedPassword)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil, ErrUserNotFound
@@ -176,20 +206,13 @@ func (dbs *dbStorage) SaveRefreshToken(ctx context.Context, userID int64, tokenH
 		return fmt.Errorf("empty duration: %w", ErrInvalidArgument)
 	}
 	// create transaction
-	tx, err := dbs.storage.BeginTx(ctx, nil)
+	tx, err := dbs.storage.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
-	// check arguments
-	if userID == 0 {
-		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
-	}
-	if deviceName == "" {
-		return fmt.Errorf("empty device name: %w", ErrInvalidArgument)
-	}
+	defer tx.Rollback(ctx)
 	// mark token as revoked
-	_, err = tx.ExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
         UPDATE tokens
         SET revoked_at = NOW()
         WHERE user_id = $1 AND device_name = $2 AND revoked_at IS NULL
@@ -199,14 +222,14 @@ func (dbs *dbStorage) SaveRefreshToken(ctx context.Context, userID int64, tokenH
 	}
 	// create new token
 	expiresAt := time.Now().Add(ttl)
-	_, err = tx.ExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
         INSERT INTO tokens (user_id, token_hash, expires_at, device_name)
         VALUES ($1, $2, $3, $4)
     `, userID, tokenHash, expiresAt, deviceName)
 	if err != nil {
 		return fmt.Errorf("failed to add new refresh token: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
@@ -226,7 +249,7 @@ func (dbs *dbStorage) CheckRefreshToken(ctx context.Context, userID int64, token
 	}
 	// check refresh token
 	var unusedVar int
-	err := dbs.storage.QueryRowContext(ctx, `
+	err := dbs.storage.QueryRow(ctx, `
         SELECT 1
         FROM tokens
         WHERE user_id = $1 AND token_hash = $2 AND device_name = $3 AND revoked_at IS NULL AND expires_at > NOW() 
@@ -250,7 +273,7 @@ func (dbs *dbStorage) RevokeToken(ctx context.Context, userID int64, deviceName 
 		return fmt.Errorf("empty device name: %w", ErrInvalidArgument)
 	}
 	// mark token as revoked
-	result, err := dbs.storage.ExecContext(ctx, `
+	result, err := dbs.storage.Exec(ctx, `
         UPDATE tokens
         SET revoked_at = NOW()
         WHERE user_id = $1 AND device_name = $2 AND revoked_at IS NULL
@@ -258,10 +281,7 @@ func (dbs *dbStorage) RevokeToken(ctx context.Context, userID int64, deviceName 
 	if err != nil {
 		return fmt.Errorf("failed to mark token as revoked: %w", err)
 	}
-	revokedTokensAmount, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get revoked tokens amount: %w", err)
-	}
+	revokedTokensAmount := result.RowsAffected()
 	if revokedTokensAmount == 0 {
 		return ErrNoChanges
 	}
@@ -275,7 +295,7 @@ func (dbs *dbStorage) RevokeAllTokens(ctx context.Context, userID int64) error {
 		return fmt.Errorf("empty user id: %w", ErrInvalidArgument)
 	}
 	// revoke all tokens
-	result, err := dbs.storage.ExecContext(ctx, `
+	result, err := dbs.storage.Exec(ctx, `
         UPDATE tokens
         SET revoked_at = NOW()
         WHERE user_id = $1 AND revoked_at IS NULL
@@ -283,10 +303,7 @@ func (dbs *dbStorage) RevokeAllTokens(ctx context.Context, userID int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to mark all tokens as revoked: %w", err)
 	}
-	revokedTokensAmount, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get revoked tokens amount: %w", err)
-	}
+	revokedTokensAmount := result.RowsAffected()
 	if revokedTokensAmount == 0 {
 		return ErrNoChanges
 	}
@@ -320,18 +337,15 @@ func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType m
 	query := `
         INSERT INTO secrets (user_id, type, name, data, salt, iv, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (user_id, name, version) DO NOTHING
+		ON CONFLICT (user_id, name, version) WHERE deleted_at IS NULL DO NOTHING
     `
-	result, err := dbs.storage.ExecContext(ctx, query,
+	result, err := dbs.storage.Exec(ctx, query,
 		userID, dataType, name, data, salt, iv, rawMetadata,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
-	}
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return ErrAlreadyInStorage
 	}
@@ -379,7 +393,7 @@ func (dbs *dbStorage) GetSecret(
 		ORDER BY version DESC
 		LIMIT 1
 	`
-	err = dbs.storage.QueryRowContext(ctx, query,
+	err = dbs.storage.QueryRow(ctx, query,
 		userID, dataType, name, version,
 	).Scan(&data, &salt, &iv, &rawMetadata)
 	if err != nil {
@@ -398,19 +412,19 @@ func (dbs *dbStorage) GetSecret(
 	return data, salt, iv, metadata, nil
 }
 
-// RollbackSecret rolls back the secret to the previous version by soft-deleting the latest version.
-// This makes the second-latest version the current active one. If there is only one active version,
-// an error is returned.
+// RollbackSecret rolls back the secret to the previous version by soft-deleting
+// the latest active version. It requires at least two active versions; if fewer
+// exist, returns ErrSecretRollbackNotPossible. If the secret does not exist,
+// returns ErrSecretNotFound.
 //
 // Parameters:
 //   - ctx: context for cancellation.
 //   - userID: owner of the secret.
-//   - dataType: type of the secret.
 //   - name: name of the secret.
 //
 // Returns:
-//   - error: nil on success, or an error if fewer than 2 active versions exist
-//     or the update fails.
+//   - error: nil on success; ErrSecretNotFound if the secret has no active
+//     versions; ErrSecretRollbackNotPossible if only one version exists.
 func (dbs *dbStorage) RollbackSecret(
 	ctx context.Context,
 	userID int64,
@@ -423,24 +437,26 @@ func (dbs *dbStorage) RollbackSecret(
 	if name == "" {
 		return fmt.Errorf("empty secret name: %w", ErrInvalidArgument)
 	}
-	// Find the maximum version among active secrets.
-	tx, err := dbs.storage.BeginTx(ctx, nil)
+
+	tx, err := dbs.storage.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create database transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
+
+	// MAX() on an empty result set returns a single row with NULL, not
+	// sql.ErrNoRows. Scan into *int64 to distinguish "no rows" from "zero".
 	var maxVersion int64
 	queryMax := `
-		SELECT MAX(version)
+		SELECT COALESCE(MAX(version), 0)
 		FROM secrets
 		WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL
 	`
-	err = tx.QueryRowContext(ctx, queryMax, userID, name).Scan(&maxVersion)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrSecretNotFound
-		}
+	if err := tx.QueryRow(ctx, queryMax, userID, name).Scan(&maxVersion); err != nil {
 		return fmt.Errorf("failed to get max version: %w", err)
+	}
+	if maxVersion == 0 {
+		return ErrSecretNotFound
 	}
 	if maxVersion < 2 {
 		return ErrSecretRollbackNotPossible
@@ -452,18 +468,15 @@ func (dbs *dbStorage) RollbackSecret(
 		SET deleted_at = NOW()
 		WHERE user_id = $1 AND name = $2 AND version = $3 AND deleted_at IS NULL
 	`
-	result, err := tx.ExecContext(ctx, queryUpdate, userID, name, maxVersion)
+	result, err := tx.Exec(ctx, queryUpdate, userID, name, maxVersion)
 	if err != nil {
 		return fmt.Errorf("failed to rollback secret: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return ErrSecretNotFound
 	}
-	if err = tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
@@ -487,14 +500,11 @@ func (dbs *dbStorage) DeleteSecret(
 		SET deleted_at = NOW()
 		WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL
 	`
-	result, err := dbs.storage.ExecContext(ctx, queryUpdate, userID, name)
+	result, err := dbs.storage.Exec(ctx, queryUpdate, userID, name)
 	if err != nil {
 		return fmt.Errorf("failed to delete secret: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return ErrSecretNotFound
 	}
@@ -518,11 +528,11 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
 		}
 	}
 	// start transaction
-	tx, err := dbs.storage.BeginTx(ctx, nil)
+	tx, err := dbs.storage.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	// get old data from database
 	var oldData, oldSalt, oldIV []byte
@@ -538,7 +548,7 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
         LIMIT 1
         FOR UPDATE
     `
-	err = tx.QueryRowContext(ctx, selectQuery, userID, name).
+	err = tx.QueryRow(ctx, selectQuery, userID, name).
 		Scan(&oldData, &dataType, &oldSalt, &oldIV, &oldRawMetadata, &oldVersion)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -580,7 +590,7 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
         INSERT INTO secrets (user_id, name, type, data, salt, iv, metadata, version, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
     `
-	_, err = tx.ExecContext(ctx, insertQuery,
+	_, err = tx.Exec(ctx, insertQuery,
 		userID, name, dataType, newData, newSalt, newIV, newRawMetadata, newVersion,
 	)
 	if err != nil {
@@ -588,7 +598,7 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
 	}
 
 	// commit transaction
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -647,7 +657,7 @@ func (dbs *dbStorage) ListSecrets(
 		args = []any{userID}
 	}
 
-	rows, err := dbs.storage.QueryContext(ctx, query, args...)
+	rows, err := dbs.storage.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets: %w", err)
 	}

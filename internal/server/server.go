@@ -11,7 +11,6 @@ import (
 
 	"github.com/max-marek-projects/custodia/internal/handlers"
 	"github.com/max-marek-projects/custodia/internal/interceptors"
-	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/utils"
 	"github.com/max-marek-projects/custodia/pkg/proto"
 	"google.golang.org/grpc"
@@ -28,7 +27,7 @@ import (
 // Returns:
 //   - *tls.Config: the TLS configuration (minimum version TLS 1.2).
 //   - error: non‑nil if loading the key pair fails.
-func CreateTLSConf(certificate, key string) (*tls.Config, error) {
+func CreateTLSConf(certificate, key string, logger *slog.Logger) (*tls.Config, error) {
 	if certificate == "" || key == "" {
 		return nil, fmt.Errorf("certificate or key path is empty")
 	}
@@ -40,7 +39,7 @@ func CreateTLSConf(certificate, key string) (*tls.Config, error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	}
-	logger.Log.Info("TLS configuration created")
+	logger.Info("TLS configuration created")
 	return tlsConf, nil
 }
 
@@ -49,6 +48,7 @@ type Server struct {
 	*grpc.Server
 	Addr    string
 	handler *handlers.GRPCHandler
+	logger  *slog.Logger
 }
 
 // NewServer creates a new gRPC server with the given address, handler, timeouts,
@@ -71,6 +71,7 @@ func NewServer(
 	readTimeout, writeTimeout time.Duration,
 	cookieSecret string,
 	tlsConfig *tls.Config,
+	logger *slog.Logger,
 ) (*Server, error) {
 	if err := utils.ValidateCookieSecret(cookieSecret); err != nil {
 		return nil, fmt.Errorf("wrong cookie secret: %w", err)
@@ -83,7 +84,7 @@ func NewServer(
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(
 			interceptors.GRPCAuthInterceptor(cookieSecret),
-			interceptors.GRPCLoggerInterceptor(),
+			interceptors.GRPCLoggerInterceptor(logger),
 		),
 	)
 	server := grpc.NewServer(opts...)
@@ -92,6 +93,7 @@ func NewServer(
 		Server:  server,
 		Addr:    addr,
 		handler: handler,
+		logger:  logger,
 	}, nil
 }
 
@@ -102,13 +104,13 @@ func NewServer(
 // Returns:
 //   - error: nil on successful start (blocking) or an error if startup fails.
 func (s *Server) ListenAndServe() error {
-	logger.Log.Info("Starting GRPC server", slog.String("address", s.Addr))
+	s.logger.Info("Starting GRPC server", slog.String("address", s.Addr))
 	listener, err := net.Listen("tcp", s.Addr)
 	if err != nil {
 		return fmt.Errorf("create grpc listener: %w", err)
 	}
 	if err := s.Serve(listener); err != nil {
-		logger.Log.Error("grpc server stopped", slog.Any("error", err))
+		s.logger.Error("grpc server stopped", slog.Any("error", err))
 		return fmt.Errorf("server run error: %w", err)
 	}
 	return nil

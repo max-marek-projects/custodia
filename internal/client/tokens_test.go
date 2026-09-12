@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/max-marek-projects/custodia/internal/logger"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func setupTestEnv(t *testing.T) string {
 func TestTokenStorage_Save(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	tokens := &models.Tokens{
 		AccessToken:  "access123",
 		RefreshToken: []byte("refresh456"),
@@ -49,7 +50,7 @@ func TestTokenStorage_Save(t *testing.T) {
 func TestTokenStorage_Save_NilTokens(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	err := storage.Save(nil)
 	assert.Error(t, err)
 	assert.Equal(t, "tokens is nil", err.Error())
@@ -58,7 +59,7 @@ func TestTokenStorage_Save_NilTokens(t *testing.T) {
 func TestTokenStorage_Read(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	tokens := &models.Tokens{
 		AccessToken:  "access123",
 		RefreshToken: []byte("refresh456"),
@@ -75,7 +76,7 @@ func TestTokenStorage_Read(t *testing.T) {
 func TestTokenStorage_Read_FileNotExists(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 
 	// Ensure file does not exist
 	path, err := storage.getFilePath()
@@ -91,7 +92,7 @@ func TestTokenStorage_Read_FileNotExists(t *testing.T) {
 func TestTokenStorage_Read_InvalidJSON(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	path, err := storage.getFilePath()
 	require.NoError(t, err)
 
@@ -105,7 +106,7 @@ func TestTokenStorage_Read_InvalidJSON(t *testing.T) {
 func TestTokenStorage_Clear(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	tokens := &models.Tokens{AccessToken: "access123"}
 	err := storage.Save(tokens)
 	require.NoError(t, err)
@@ -122,7 +123,7 @@ func TestTokenStorage_Clear(t *testing.T) {
 func TestTokenStorage_Clear_FileNotExists(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	path, err := storage.getFilePath()
 	require.NoError(t, err)
 	_ = os.Remove(path)
@@ -134,7 +135,7 @@ func TestTokenStorage_Clear_FileNotExists(t *testing.T) {
 func TestTokenStorage_ConcurrentAccess(t *testing.T) {
 	setupTestEnv(t)
 
-	storage := newTokenStorage("", "")
+	storage := newTokenStorage("", "", logger.NewNop())
 	tokens := &models.Tokens{AccessToken: "access123"}
 
 	var wg sync.WaitGroup

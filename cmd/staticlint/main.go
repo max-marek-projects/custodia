@@ -56,7 +56,7 @@ import (
 
 func main() {
 	// initialize logger for debugging
-	err := logger.Initialize(logger.LevelDebug)
+	Logger, err := logger.New(logger.LevelDebug)
 	if err != nil {
 		log.Fatalf("Unable to initialize logger: %v", err)
 	}
@@ -115,7 +115,7 @@ func main() {
 	for _, analyzerGroup := range analyzerGroups {
 		for _, a := range analyzerGroup {
 			if sRulePattern.MatchString(a.Analyzer.Name) {
-				logger.Log.Debug("Added analyzer", slog.String("name", a.Analyzer.Name))
+				Logger.Debug("Added analyzer", slog.String("name", a.Analyzer.Name))
 				allAnalyzers = append(allAnalyzers, a.Analyzer)
 			}
 		}
