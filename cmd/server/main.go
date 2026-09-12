@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"os"
@@ -47,13 +46,11 @@ func run() error {
 	// Load configuration.
 	configData, err := config.LoadConfig()
 	if err != nil {
-		logger.Log.Error("failed to initialize settings", slog.Any("error", err))
 		return err
 	}
 	// Initialize the global logger.
 	err = logger.Initialize(configData.LoggerLevel)
 	if err != nil {
-		logger.Log.Error("failed to initialize logger", slog.Any("error", err))
 		return err
 	}
 	// Create database storage (runs migrations).
@@ -63,25 +60,26 @@ func run() error {
 		return err
 	}
 	// Create the business logic service.
-	service := service.NewService(
+	service, err := service.NewService(
 		store,
 		configData.CookieSecret,
 		configData.AccessTokenLifespan.Duration(),
 		configData.RefreshTokenLifespan.Duration(),
 	)
+	if err != nil {
+		logger.Log.Error("Unable to create service handler", slog.Any("error", err))
+		return err
+	}
 	grpcHandler := handlers.NewGRPCHandler(service)
 
 	// Prepare TLS configuration if HTTPS is enabled.
-	var tlsConfig *tls.Config
-	if configData.EnableHTTPS {
-		tlsConfig, err = server.CreateTLSConf("server.pem", "server.key")
-		if err != nil {
-			logger.Log.Error("failed to load TLS certificates", slog.Any("error", err))
-			return err
-		}
+	tlsConfig, err := server.CreateTLSConf(configData.CertPath, configData.KeyPath)
+	if err != nil {
+		logger.Log.Error("failed to load TLS certificates", slog.Any("error", err))
+		return err
 	}
 	// Create the gRPC server.
-	grpcSrv := server.NewServer(
+	grpcSrv, err := server.NewServer(
 		configData.RunAddr,
 		grpcHandler,
 		configData.ReadTimeout.Duration(),
@@ -89,6 +87,10 @@ func run() error {
 		configData.CookieSecret,
 		tlsConfig,
 	)
+	if err != nil {
+		logger.Log.Error("Unable to initialize server", slog.Any("error", err))
+		return err
+	}
 
 	// Run the gRPC server in a separate goroutine.
 	grpcErr := make(chan error, 1)

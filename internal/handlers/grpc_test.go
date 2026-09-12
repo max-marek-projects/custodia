@@ -1113,6 +1113,36 @@ func TestGRPCHandler_UpdateSecretMetadata(t *testing.T) {
 	}
 }
 
+func TestGRPCHandler_ListSecrets(t *testing.T) {
+	ctx := requests.SetUserIDToContext(context.Background(), int64(1))
+
+	t.Run("success", func(t *testing.T) {
+		mockSvc := NewMockService(t)
+		mockSvc.EXPECT().
+			ListSecrets(ctx, int64(1), map[string]string{"env": "prod"}).
+			Return([]models.SecretInfo{
+				{Name: "login1", Type: models.DataTypeCredentials, LatestVersion: 2},
+			}, nil)
+
+		h := NewGRPCHandler(mockSvc)
+		req := &proto.ListSecretsRequest{}
+		req.SetMetadata(map[string]string{"env": "prod"})
+		resp, err := h.ListSecrets(ctx, req)
+		require.NoError(t, err)
+		require.Len(t, resp.GetSecrets(), 1)
+		assert.Equal(t, "login1", resp.GetSecrets()[0].GetName())
+	})
+
+	t.Run("user id missing", func(t *testing.T) {
+		mockSvc := NewMockService(t)
+		h := NewGRPCHandler(mockSvc)
+		_, err := h.ListSecrets(context.Background(), &proto.ListSecretsRequest{})
+		assert.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.Internal, st.Code())
+	})
+}
+
 func TestGRPCHandler_Close(t *testing.T) {
 	mockService := NewMockService(t)
 	mockService.EXPECT().Close(mock.Anything).Return(nil)

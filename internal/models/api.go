@@ -20,3 +20,11 @@ type LoginResponse struct {
 	AccessToken  string
 	RefreshToken []byte
 }
+
+// SecretInfo is a lightweight representation of a secret used in ListSecrets.
+type SecretInfo struct {
+	Name          string
+	Type          DataType
+	Metadata      map[string]string
+	LatestVersion uint64
+}

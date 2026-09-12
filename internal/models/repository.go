@@ -4,7 +4,6 @@ package models
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/max-marek-projects/custodia/internal/utils"
 	"github.com/max-marek-projects/custodia/pkg/proto"
@@ -27,6 +26,7 @@ var ProtoDataTypeToString = map[proto.DataType]DataType{
 	proto.DataType_DATA_TYPE_BINARY:      DataTypeBinary,
 	proto.DataType_DATA_TYPE_CARD:        DataTypeCard,
 }
+var StringDataTypeToProto map[DataType]proto.DataType
 
 func init() {
 	StringDataTypeToProto := make(map[DataType]proto.DataType, len(ProtoDataTypeToString))
@@ -71,20 +71,4 @@ func NewCardData(number, holderName, expirationDate, cvv string) (*CardData, err
 		ExpirationDate: expirationDate,
 		CVV:            cvv,
 	}, nil
-}
-
-// ========== database ==========
-
-// SecretData represents all data from single row of database table
-type SecretData struct {
-	ID        string
-	UserID    int64
-	Type      DataType
-	Name      string
-	Data      []byte
-	Metadata  map[string]string
-	Version   int64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
 }

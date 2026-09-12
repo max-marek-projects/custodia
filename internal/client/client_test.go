@@ -635,6 +635,159 @@ func TestClient_UpdateMetadata(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestClient_ListSecrets(t *testing.T) {
+	t.Run("success without filter", func(t *testing.T) {
+		cl, mockClient, _, session := setupTest(t)
+		ctx := context.Background()
+
+		session.Password = []byte("secret")
+		session.ExpiresAt = time.Now().Add(time.Hour)
+
+		// Prepare expected response.
+		info1 := &proto.SecretInfo{}
+		info1.SetName("login1")
+		info1.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
+		info1.SetMetadata(map[string]string{"env": "prod"})
+		info1.SetLatestVersion(3)
+
+		info2 := &proto.SecretInfo{}
+		info2.SetName("note1")
+		info2.SetType(proto.DataType_DATA_TYPE_TEXT)
+		info2.SetMetadata(map[string]string{})
+		info2.SetLatestVersion(1)
+
+		resp := &proto.ListSecretsResponse{}
+		resp.SetSecrets([]*proto.SecretInfo{info1, info2})
+
+		mockClient.EXPECT().
+			ListSecrets(ctx, mock.MatchedBy(func(req *proto.ListSecretsRequest) bool {
+				return len(req.GetMetadata()) == 0
+			})).
+			Return(resp, nil)
+
+		result, err := cl.ListSecrets(ctx, nil)
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+
+		assert.Equal(t, "login1", result[0].Name)
+		assert.Equal(t, models.DataTypeCredentials, result[0].Type)
+		assert.Equal(t, map[string]string{"env": "prod"}, result[0].Metadata)
+		assert.Equal(t, uint64(3), result[0].LatestVersion)
+
+		assert.Equal(t, "note1", result[1].Name)
+		assert.Equal(t, models.DataTypeText, result[1].Type)
+		assert.Equal(t, uint64(1), result[1].LatestVersion)
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("success with metadata filter", func(t *testing.T) {
+		cl, mockClient, _, session := setupTest(t)
+		ctx := context.Background()
+
+		session.Password = []byte("secret")
+		session.ExpiresAt = time.Now().Add(time.Hour)
+
+		info := &proto.SecretInfo{}
+		info.SetName("login1")
+		info.SetType(proto.DataType_DATA_TYPE_CREDENTIALS)
+		info.SetMetadata(map[string]string{"env": "prod"})
+		info.SetLatestVersion(2)
+
+		resp := &proto.ListSecretsResponse{}
+		resp.SetSecrets([]*proto.SecretInfo{info})
+
+		filter := map[string]string{"env": "prod"}
+
+		mockClient.EXPECT().
+			ListSecrets(ctx, mock.MatchedBy(func(req *proto.ListSecretsRequest) bool {
+				return req.GetMetadata()["env"] == "prod"
+			})).
+			Return(resp, nil)
+
+		result, err := cl.ListSecrets(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "login1", result[0].Name)
+		assert.Equal(t, uint64(2), result[0].LatestVersion)
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("empty result", func(t *testing.T) {
+		cl, mockClient, _, session := setupTest(t)
+		ctx := context.Background()
+
+		session.Password = []byte("secret")
+		session.ExpiresAt = time.Now().Add(time.Hour)
+
+		mockClient.EXPECT().
+			ListSecrets(ctx, mock.Anything).
+			Return(&proto.ListSecretsResponse{}, nil)
+
+		result, err := cl.ListSecrets(ctx, nil)
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("invalid argument from server", func(t *testing.T) {
+		cl, mockClient, _, session := setupTest(t)
+		ctx := context.Background()
+
+		session.Password = []byte("secret")
+		session.ExpiresAt = time.Now().Add(time.Hour)
+
+		mockClient.EXPECT().
+			ListSecrets(ctx, mock.Anything).
+			Return(nil, status.Error(codes.InvalidArgument, "invalid filter"))
+
+		_, err := cl.ListSecrets(ctx, map[string]string{"bad": "filter"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid filter")
+	})
+
+	t.Run("internal error from server", func(t *testing.T) {
+		cl, mockClient, _, session := setupTest(t)
+		ctx := context.Background()
+
+		session.Password = []byte("secret")
+		session.ExpiresAt = time.Now().Add(time.Hour)
+
+		mockClient.EXPECT().
+			ListSecrets(ctx, mock.Anything).
+			Return(nil, status.Error(codes.Internal, "db down"))
+
+		_, err := cl.ListSecrets(ctx, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to list secrets")
+	})
+
+	t.Run("unknown data type in response", func(t *testing.T) {
+		cl, mockClient, _, session := setupTest(t)
+		ctx := context.Background()
+
+		session.Password = []byte("secret")
+		session.ExpiresAt = time.Now().Add(time.Hour)
+
+		// Unknown data type (999).
+		info := &proto.SecretInfo{}
+		info.SetName("weird")
+		info.SetType(proto.DataType(999))
+		info.SetLatestVersion(1)
+
+		resp := &proto.ListSecretsResponse{}
+		resp.SetSecrets([]*proto.SecretInfo{info})
+
+		mockClient.EXPECT().
+			ListSecrets(ctx, mock.Anything).
+			Return(resp, nil)
+
+		_, err := cl.ListSecrets(ctx, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown data type")
+	})
+}
+
 // ---------- Error cases: no active session ----------
 
 func TestClient_OperationsRequireSession(t *testing.T) {

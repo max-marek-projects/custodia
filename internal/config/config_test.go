@@ -39,7 +39,6 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	assert.False(t, cfg.ForceMigrations)
 	assert.Empty(t, cfg.CookieSecret)
 	assert.Equal(t, "./migrations", cfg.MigrationsPath)
-	assert.False(t, cfg.EnableHTTPS)
 	assert.Empty(t, cfg.ConfigFilePath)
 }
 
@@ -68,7 +67,6 @@ func TestLoadConfig_Flags(t *testing.T) {
 		"-f=true",
 		"-cookie-secret=flag_secret",
 		"-migrations=./flag_migrations",
-		"-s=true",
 	}
 
 	cfg, err := LoadConfig()
@@ -84,7 +82,6 @@ func TestLoadConfig_Flags(t *testing.T) {
 	assert.True(t, cfg.ForceMigrations)
 	assert.Equal(t, "flag_secret", cfg.CookieSecret)
 	assert.Equal(t, "./flag_migrations", cfg.MigrationsPath)
-	assert.True(t, cfg.EnableHTTPS)
 	assert.Empty(t, cfg.ConfigFilePath)
 }
 
@@ -111,7 +108,6 @@ func TestLoadConfig_Env(t *testing.T) {
 		"FORCE_MIGRATIONS":       "true",
 		"COOKIE_SECRET":          "env_secret",
 		"MIGRATIONS":             "./env_migrations",
-		"ENABLE_HTTPS":           "true",
 	}
 	for k, v := range envVars {
 		err := os.Setenv(k, v)
@@ -134,7 +130,6 @@ func TestLoadConfig_Env(t *testing.T) {
 	assert.True(t, cfg.ForceMigrations)
 	assert.Equal(t, "env_secret", cfg.CookieSecret)
 	assert.Equal(t, "./env_migrations", cfg.MigrationsPath)
-	assert.True(t, cfg.EnableHTTPS)
 	assert.Empty(t, cfg.ConfigFilePath)
 }
 
@@ -176,10 +171,11 @@ func TestLoadConfig_ConfigFile(t *testing.T) {
 	defer func() {
 		os.Args = oldArgs
 		flag.CommandLine = oldCommandLine
-		os.Unsetenv("CONFIG")
+		_ = os.Unsetenv("CONFIG")
 		os.Clearenv()
 	}()
-	os.Unsetenv("CONFIG")
+	err := os.Unsetenv("CONFIG")
+	require.NoError(t, err)
 	os.Clearenv()
 
 	// Create a temporary JSON config file
@@ -197,8 +193,7 @@ func TestLoadConfig_ConfigFile(t *testing.T) {
 		"database_uri": "postgres://file:pass@localhost:5432/db",
 		"force_migrations": true,
 		"cookie_secret": "file_secret",
-		"migrations_path": "./file_migrations",
-		"enable_https": true
+		"migrations_path": "./file_migrations"
 	}`
 	_, err = tmpFile.WriteString(content)
 	require.NoError(t, err)
@@ -221,7 +216,6 @@ func TestLoadConfig_ConfigFile(t *testing.T) {
 	assert.True(t, cfg.ForceMigrations)
 	assert.Equal(t, "file_secret", cfg.CookieSecret)
 	assert.Equal(t, "./file_migrations", cfg.MigrationsPath)
-	assert.True(t, cfg.EnableHTTPS)
 	assert.Equal(t, tmpFile.Name(), cfg.ConfigFilePath)
 }
 

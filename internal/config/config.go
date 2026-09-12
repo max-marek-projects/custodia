@@ -47,8 +47,10 @@ type Config struct {
 	CookieSecret string `env:"COOKIE_SECRET" json:"cookie_secret"`
 	// MigrationsPath is the directory containing migration files.
 	MigrationsPath string `env:"MIGRATIONS" json:"migrations_path"`
-	// EnableHTTPS enables TLS for the server.
-	EnableHTTPS bool `env:"ENABLE_HTTPS" json:"enable_https"`
+	// CertPath is the path to a certificate file for server tls configuration.
+	CertPath string `env:"CERT_PATH" json:"cert_path"`
+	// KeyPath is the path to a key file for server tls configuration.
+	KeyPath string `env:"KEY_PATH" json:"key_path"`
 	// ConfigFilePath is the path to a JSON configuration file (ignored in JSON).
 	ConfigFilePath string `env:"CONFIG" json:"-"`
 }
@@ -121,7 +123,8 @@ func LoadConfig() (config *Config, err error) {
 	fs.BoolVar(&config.ForceMigrations, "f", config.ForceMigrations, "force database migrations in case of last dirty versions")
 	fs.StringVar(&config.CookieSecret, "cookie-secret", config.CookieSecret, "cookie signing secret")
 	fs.StringVar(&config.MigrationsPath, "migrations", config.MigrationsPath, "path to database migrations")
-	fs.BoolVar(&config.EnableHTTPS, "s", config.EnableHTTPS, "enable https protocol")
+	fs.StringVar(&config.CertPath, "cert", config.CertPath, "path to certificate file for server")
+	fs.StringVar(&config.KeyPath, "key", config.KeyPath, "path to key file for server")
 	fs.StringVar(&config.ConfigFilePath, "c", config.ConfigFilePath, "config file path")
 	fs.StringVar(&config.ConfigFilePath, "config", config.ConfigFilePath, "config file path")
 	// read flags to temp vars

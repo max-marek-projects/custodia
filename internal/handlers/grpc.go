@@ -436,3 +436,45 @@ func (h *GRPCHandler) UpdateSecretMetadata(
 	}
 	return &proto.UpdateSecretMetadataResponse{}, nil
 }
+
+// ListSecrets returns all secrets of the authenticated user, optionally filtered by metadata.
+// It expects the user ID in the context.
+//
+// Parameters:
+//   - ctx: the request context (must contain user ID).
+//   - req: contains optional metadata filter (key-value pairs).
+//
+// Returns:
+//   - *proto.ListSecretsResponse: contains the list of matching secrets.
+//   - error: gRPC status error if user ID missing, validation fails, or internal error.
+func (h *GRPCHandler) ListSecrets(
+	ctx context.Context,
+	req *proto.ListSecretsRequest,
+) (*proto.ListSecretsResponse, error) {
+	userID, found := requests.GetUserIDFromContext(ctx)
+	if !found {
+		logger.Log.Error("Failed to get user id from context. Interceptor error")
+		return nil, status.Error(codes.Internal, "Internal error")
+	}
+	filter := req.GetMetadata()
+	secrets, err := h.service.ListSecrets(ctx, userID, filter)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidArgument) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		logger.Log.Error("Failed to list secrets", slog.Any("error", err))
+		return nil, status.Error(codes.Internal, "Internal error")
+	}
+	response := &proto.ListSecretsResponse{}
+	var secretsItems []*proto.SecretInfo
+	for _, s := range secrets {
+		item := &proto.SecretInfo{}
+		item.SetName(s.Name)
+		item.SetType(models.StringDataTypeToProto[s.Type])
+		item.SetMetadata(s.Metadata)
+		item.SetLatestVersion(s.LatestVersion)
+		secretsItems = append(secretsItems, item)
+	}
+	response.SetSecrets(secretsItems)
+	return response, nil
+}

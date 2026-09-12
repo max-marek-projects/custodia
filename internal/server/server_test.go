@@ -9,10 +9,12 @@ import (
 	"github.com/max-marek-projects/custodia/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
-const testAddr = ":0" // let the system pick a free port
+const testAddr = ":0"                                              // let the system pick a free port
+const testSecretKey = "test-secret-key-abcdefghijklmnopqrstuvwxyz" // at least 32 characters long
 
 // TestCreateTLSConf tests loading of TLS certificates.
 func TestCreateTLSConf(t *testing.T) {
@@ -28,10 +30,21 @@ func TestNewServer(t *testing.T) {
 	handler := handlers.NewGRPCHandler(NewMockService(t))
 
 	t.Run("without TLS", func(t *testing.T) {
-		svr := NewServer(testAddr, handler, 0, 0, "secret", nil)
+		svr, err := NewServer(testAddr, handler, 0, 0, testSecretKey, nil)
+		require.NoError(t, err)
 		assert.NotNil(t, svr)
 		assert.NotNil(t, svr.Server)
 		assert.Equal(t, testAddr, svr.Addr)
+	})
+
+	t.Run("empty secret key", func(t *testing.T) {
+		_, err := NewServer(testAddr, handler, 0, 0, "", nil)
+		assert.Error(t, err)
+	})
+
+	t.Run("too short secret key", func(t *testing.T) {
+		_, err := NewServer(testAddr, handler, 0, 0, "too-short-secret-key", nil)
+		assert.Error(t, err)
 	})
 }
 
@@ -40,7 +53,8 @@ func TestServer_ListenAndServe_Shutdown(t *testing.T) {
 	mockService := NewMockService(t)
 	mockService.EXPECT().Close(mock.Anything).Return(nil)
 	handler := handlers.NewGRPCHandler(mockService)
-	svr := NewServer("127.0.0.1:0", handler, 0, 0, "secret", nil)
+	svr, err := NewServer("127.0.0.1:0", handler, 0, 0, testSecretKey, nil)
+	require.NoError(t, err)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -51,7 +65,7 @@ func TestServer_ListenAndServe_Shutdown(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	err := svr.Shutdown(ctx)
+	err = svr.Shutdown(ctx)
 	assert.NoError(t, err)
 
 	select {

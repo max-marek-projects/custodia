@@ -771,6 +771,52 @@ func TestDBStorage_UpdateSecret(t *testing.T) {
 	})
 }
 
+func TestDBStorage_ListSecrets(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	storage := &dbStorage{storage: db}
+	ctx := context.Background()
+
+	t.Run("no filter returns all", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"name", "type", "metadata", "version"}).
+			AddRow("login1", "credentials", []byte(`{"env":"prod"}`), 3).
+			AddRow("note1", "text", []byte(`{}`), 1)
+
+		mock.ExpectQuery(`SELECT DISTINCT ON \(name, type\) name, type, metadata, version`).
+			WithArgs(int64(1)).
+			WillReturnRows(rows)
+
+		result, err := storage.ListSecrets(ctx, 1, nil)
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, "login1", result[0].Name)
+		assert.Equal(t, models.DataTypeCredentials, result[0].Type)
+		assert.Equal(t, uint64(3), result[0].LatestVersion)
+		assert.Equal(t, map[string]string{"env": "prod"}, result[0].Metadata)
+	})
+
+	t.Run("with filter uses @> operator", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"name", "type", "metadata", "version"}).
+			AddRow("login1", "credentials", []byte(`{"env":"prod"}`), 2)
+
+		mock.ExpectQuery(`metadata @> \$2::jsonb`).
+			WithArgs(int64(1), []byte(`{"env":"prod"}`)).
+			WillReturnRows(rows)
+
+		result, err := storage.ListSecrets(ctx, 1, map[string]string{"env": "prod"})
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "login1", result[0].Name)
+	})
+
+	t.Run("empty user id", func(t *testing.T) {
+		_, err := storage.ListSecrets(ctx, 0, nil)
+		assert.ErrorIs(t, err, ErrInvalidArgument)
+	})
+}
+
 func TestDBStorage_Close(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

@@ -30,6 +30,7 @@ const (
 	Custodia_DeleteSecret_FullMethodName         = "/custodia.Custodia/DeleteSecret"
 	Custodia_UpdateSecretData_FullMethodName     = "/custodia.Custodia/UpdateSecretData"
 	Custodia_UpdateSecretMetadata_FullMethodName = "/custodia.Custodia/UpdateSecretMetadata"
+	Custodia_ListSecrets_FullMethodName          = "/custodia.Custodia/ListSecrets"
 )
 
 // CustodiaClient is the client API for Custodia service.
@@ -49,6 +50,7 @@ type CustodiaClient interface {
 	DeleteSecret(ctx context.Context, in *DeleteSecretRequest, opts ...grpc.CallOption) (*DeleteSecretResponse, error)
 	UpdateSecretData(ctx context.Context, in *UpdateSecretDataRequest, opts ...grpc.CallOption) (*UpdateSecretDataResponse, error)
 	UpdateSecretMetadata(ctx context.Context, in *UpdateSecretMetadataRequest, opts ...grpc.CallOption) (*UpdateSecretMetadataResponse, error)
+	ListSecrets(ctx context.Context, in *ListSecretsRequest, opts ...grpc.CallOption) (*ListSecretsResponse, error)
 }
 
 type custodiaClient struct {
@@ -169,6 +171,16 @@ func (c *custodiaClient) UpdateSecretMetadata(ctx context.Context, in *UpdateSec
 	return out, nil
 }
 
+func (c *custodiaClient) ListSecrets(ctx context.Context, in *ListSecretsRequest, opts ...grpc.CallOption) (*ListSecretsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListSecretsResponse)
+	err := c.cc.Invoke(ctx, Custodia_ListSecrets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CustodiaServer is the server API for Custodia service.
 // All implementations must embed UnimplementedCustodiaServer
 // for forward compatibility.
@@ -186,6 +198,7 @@ type CustodiaServer interface {
 	DeleteSecret(context.Context, *DeleteSecretRequest) (*DeleteSecretResponse, error)
 	UpdateSecretData(context.Context, *UpdateSecretDataRequest) (*UpdateSecretDataResponse, error)
 	UpdateSecretMetadata(context.Context, *UpdateSecretMetadataRequest) (*UpdateSecretMetadataResponse, error)
+	ListSecrets(context.Context, *ListSecretsRequest) (*ListSecretsResponse, error)
 	mustEmbedUnimplementedCustodiaServer()
 }
 
@@ -228,6 +241,9 @@ func (UnimplementedCustodiaServer) UpdateSecretData(context.Context, *UpdateSecr
 }
 func (UnimplementedCustodiaServer) UpdateSecretMetadata(context.Context, *UpdateSecretMetadataRequest) (*UpdateSecretMetadataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSecretMetadata not implemented")
+}
+func (UnimplementedCustodiaServer) ListSecrets(context.Context, *ListSecretsRequest) (*ListSecretsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSecrets not implemented")
 }
 func (UnimplementedCustodiaServer) mustEmbedUnimplementedCustodiaServer() {}
 func (UnimplementedCustodiaServer) testEmbeddedByValue()                  {}
@@ -448,6 +464,24 @@ func _Custodia_UpdateSecretMetadata_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Custodia_ListSecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSecretsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustodiaServer).ListSecrets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Custodia_ListSecrets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustodiaServer).ListSecrets(ctx, req.(*ListSecretsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Custodia_ServiceDesc is the grpc.ServiceDesc for Custodia service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -498,6 +532,10 @@ var Custodia_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSecretMetadata",
 			Handler:    _Custodia_UpdateSecretMetadata_Handler,
+		},
+		{
+			MethodName: "ListSecrets",
+			Handler:    _Custodia_ListSecrets_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

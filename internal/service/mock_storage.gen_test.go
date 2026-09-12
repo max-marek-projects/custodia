@@ -375,6 +375,66 @@ func (_c *MockStorage_GetSecret_Call) RunAndReturn(run func(context.Context, int
 	return _c
 }
 
+// ListSecrets provides a mock function with given fields: ctx, userID, filter
+func (_m *MockStorage) ListSecrets(ctx context.Context, userID int64, filter map[string]string) ([]models.SecretInfo, error) {
+	ret := _m.Called(ctx, userID, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSecrets")
+	}
+
+	var r0 []models.SecretInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, map[string]string) ([]models.SecretInfo, error)); ok {
+		return rf(ctx, userID, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, map[string]string) []models.SecretInfo); ok {
+		r0 = rf(ctx, userID, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]models.SecretInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, map[string]string) error); ok {
+		r1 = rf(ctx, userID, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListSecrets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSecrets'
+type MockStorage_ListSecrets_Call struct {
+	*mock.Call
+}
+
+// ListSecrets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID int64
+//   - filter map[string]string
+func (_e *MockStorage_Expecter) ListSecrets(ctx interface{}, userID interface{}, filter interface{}) *MockStorage_ListSecrets_Call {
+	return &MockStorage_ListSecrets_Call{Call: _e.mock.On("ListSecrets", ctx, userID, filter)}
+}
+
+func (_c *MockStorage_ListSecrets_Call) Run(run func(ctx context.Context, userID int64, filter map[string]string)) *MockStorage_ListSecrets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(map[string]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListSecrets_Call) Return(_a0 []models.SecretInfo, _a1 error) *MockStorage_ListSecrets_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListSecrets_Call) RunAndReturn(run func(context.Context, int64, map[string]string) ([]models.SecretInfo, error)) *MockStorage_ListSecrets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RegisterUser provides a mock function with given fields: ctx, userData
 func (_m *MockStorage) RegisterUser(ctx context.Context, userData models.UserData) (int64, error) {
 	ret := _m.Called(ctx, userData)

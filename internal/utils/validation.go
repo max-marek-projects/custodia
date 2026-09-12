@@ -79,3 +79,25 @@ func ValidateCardHolder(name string) error {
 	}
 	return nil
 }
+
+// minSecretLength is the minimum recommended length for HMAC-SHA256 secrets.
+// RFC 7518 recommends a key of at least the same size as the hash output (32 bytes).
+const minSecretLength = 32
+
+// ValidateCookieSecret checks that the cookie secret is suitable for signing JWTs.
+// A valid secret must be at least 32 bytes long (HMAC-SHA256 key size),
+//
+// Parameters:
+//   - secret: the secret string to validate.
+//
+// Returns:
+//   - error: nil if the secret is valid, otherwise a descriptive error.
+func ValidateCookieSecret(secret string) error {
+	if secret == "" {
+		return ErrEmptySecretKey
+	}
+	if len(secret) < minSecretLength {
+		return fmt.Errorf("cookie secret must be at least %d bytes long", minSecretLength)
+	}
+	return nil
+}

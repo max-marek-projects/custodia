@@ -35,5 +35,6 @@ type Storage interface {
 		name string,
 	) error
 	UpdateSecret(ctx context.Context, userID int64, name string, data, salt, iv []byte, metadata map[string]string) error
+	ListSecrets(ctx context.Context, userID int64, filter map[string]string) ([]models.SecretInfo, error)
 	Close(ctx context.Context) error
 }

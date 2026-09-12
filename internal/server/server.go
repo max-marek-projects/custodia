@@ -12,6 +12,7 @@ import (
 	"github.com/max-marek-projects/custodia/internal/handlers"
 	"github.com/max-marek-projects/custodia/internal/interceptors"
 	"github.com/max-marek-projects/custodia/internal/logger"
+	"github.com/max-marek-projects/custodia/internal/utils"
 	"github.com/max-marek-projects/custodia/pkg/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -28,6 +29,9 @@ import (
 //   - *tls.Config: the TLS configuration (minimum version TLS 1.2).
 //   - error: non‑nil if loading the key pair fails.
 func CreateTLSConf(certificate, key string) (*tls.Config, error) {
+	if certificate == "" || key == "" {
+		return nil, fmt.Errorf("certificate or key path is empty")
+	}
 	cert, err := tls.LoadX509KeyPair(certificate, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read certificate files: %w", err)
@@ -67,7 +71,10 @@ func NewServer(
 	readTimeout, writeTimeout time.Duration,
 	cookieSecret string,
 	tlsConfig *tls.Config,
-) *Server {
+) (*Server, error) {
+	if err := utils.ValidateCookieSecret(cookieSecret); err != nil {
+		return nil, fmt.Errorf("wrong cookie secret: %w", err)
+	}
 	var opts []grpc.ServerOption
 	if tlsConfig != nil {
 		creds := credentials.NewTLS(tlsConfig)
@@ -85,7 +92,7 @@ func NewServer(
 		Server:  server,
 		Addr:    addr,
 		handler: handler,
-	}
+	}, nil
 }
 
 // ListenAndServe starts the gRPC server on the configured address.

@@ -594,3 +594,84 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
 
 	return nil
 }
+
+// ListSecrets returns all active secrets of the user, optionally filtered by metadata.
+// The filter uses JSONB containment (@>): only secrets containing ALL key-value pairs
+// from the filter are returned. If filter is empty or nil, all active secrets are returned.
+// For each secret, only the latest (highest) active version is included.
+//
+// Parameters:
+//   - ctx: context for cancellation.
+//   - userID: owner of the secrets.
+//   - filter: map of metadata key-value pairs to match.
+//
+// Returns:
+//   - []SecretInfo: slice of matching secrets, sorted by name.
+//   - error: non-nil if the query fails.
+func (dbs *dbStorage) ListSecrets(
+	ctx context.Context,
+	userID int64,
+	filter map[string]string,
+) ([]models.SecretInfo, error) {
+	if userID == 0 {
+		return nil, fmt.Errorf("empty user id: %w", ErrInvalidArgument)
+	}
+
+	// Build the metadata filter.
+	var (
+		query string
+		args  []any
+	)
+	if len(filter) > 0 {
+		rawFilter, err := json.Marshal(filter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal metadata filter: %w", err)
+		}
+		query = `
+			SELECT DISTINCT ON (name, type) name, type, metadata, version
+			FROM secrets
+			WHERE user_id = $1
+			  AND deleted_at IS NULL
+			  AND metadata @> $2::jsonb
+			ORDER BY name, type, version DESC
+		`
+		args = []any{userID, rawFilter}
+	} else {
+		query = `
+			SELECT DISTINCT ON (name, type) name, type, metadata, version
+			FROM secrets
+			WHERE user_id = $1
+			  AND deleted_at IS NULL
+			ORDER BY name, type, version DESC
+		`
+		args = []any{userID}
+	}
+
+	rows, err := dbs.storage.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	}
+	defer rows.Close()
+
+	var result []models.SecretInfo
+	for rows.Next() {
+		var (
+			info        models.SecretInfo
+			rawMetadata []byte
+		)
+		if err := rows.Scan(&info.Name, &info.Type, &rawMetadata, &info.LatestVersion); err != nil {
+			return nil, fmt.Errorf("failed to scan secret row: %w", err)
+		}
+		info.Metadata = make(map[string]string)
+		if len(rawMetadata) > 0 {
+			if err := json.Unmarshal(rawMetadata, &info.Metadata); err != nil {
+				return nil, fmt.Errorf("failed to parse metadata: %w", err)
+			}
+		}
+		result = append(result, info)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+	return result, nil
+}

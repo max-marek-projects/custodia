@@ -527,3 +527,50 @@ func (c *client) UpdateMetadata(
 	}
 	return nil
 }
+
+// ListSecrets returns the user's secrets, optionally filtered by metadata.
+// The filter uses AND semantics: only secrets containing all key-value pairs are returned.
+//
+// Parameters:
+//   - ctx: context for cancellation.
+//   - filter: metadata key-value pairs to match; nil or empty returns all secrets.
+//
+// Returns:
+//   - []models.SecretInfo: list of matching secrets.
+//   - error: non-nil if the request fails.
+func (c *client) ListSecrets(
+	ctx context.Context,
+	filter map[string]string,
+) ([]models.SecretInfo, error) {
+	req := &proto.ListSecretsRequest{}
+	if len(filter) > 0 {
+		req.SetMetadata(filter)
+	}
+	resp, err := c.client.ListSecrets(ctx, req)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				return nil, fmt.Errorf("invalid filter: %s", st.Message())
+			default:
+				return nil, fmt.Errorf("failed to list secrets: %w", err)
+			}
+		}
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	result := make([]models.SecretInfo, 0, len(resp.GetSecrets()))
+	for _, s := range resp.GetSecrets() {
+		dataType, found := models.ProtoDataTypeToString[s.GetType()]
+		if !found {
+			return nil, fmt.Errorf("unknown data type: %v", s.GetType())
+		}
+		result = append(result, models.SecretInfo{
+			Name:          s.GetName(),
+			Type:          dataType,
+			Metadata:      s.GetMetadata(),
+			LatestVersion: s.GetLatestVersion(),
+		})
+	}
+	return result, nil
+}

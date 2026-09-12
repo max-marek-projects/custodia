@@ -11,6 +11,7 @@ import (
 	"github.com/max-marek-projects/custodia/internal/auth"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/max-marek-projects/custodia/internal/repository"
+	"github.com/max-marek-projects/custodia/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -53,6 +54,10 @@ type Service interface {
 	// UpdateSecretMetadata updates only the metadata of the secret.
 	UpdateSecretMetadata(ctx context.Context, userID int64, name string, metadata map[string]string) error
 
+	// ListSecrets returns a list of the user's secrets, optionally filtered by metadata.
+	// Only the latest version of each secret is included.
+	ListSecrets(ctx context.Context, userID int64, filter map[string]string) ([]models.SecretInfo, error)
+
 	// Close closes all open connections
 	Close(ctx context.Context) error
 }
@@ -71,13 +76,16 @@ func NewService(
 	storage repository.Storage,
 	secretKey string,
 	accessTokenLifespan, refreshTokenLifespan time.Duration,
-) Service {
+) (Service, error) {
+	if err := utils.ValidateCookieSecret(secretKey); err != nil {
+		return nil, fmt.Errorf("not valid cookie secret: %w", err)
+	}
 	return &service{
 		storage:              storage,
 		secretKey:            secretKey,
 		accessTokenLifespan:  accessTokenLifespan,
 		refreshTokenLifespan: refreshTokenLifespan,
-	}
+	}, nil
 }
 
 type service struct {
@@ -440,6 +448,35 @@ func (s *service) UpdateSecretMetadata(ctx context.Context, userID int64, name s
 		return fmt.Errorf("failed to update secret metadata: %w", err)
 	}
 	return nil
+}
+
+// ListSecrets returns a list of the user's secrets, optionally filtered by metadata.
+// The filter uses AND semantics: only secrets containing all key-value pairs are returned.
+//
+// Parameters:
+//   - ctx: context for cancellation.
+//   - userID: user identifier.
+//   - filter: metadata key-value pairs to match; nil or empty returns all secrets.
+//
+// Returns:
+//   - []repository.SecretInfo: matching secrets.
+//   - error: non-nil if validation or storage fails.
+func (s *service) ListSecrets(
+	ctx context.Context,
+	userID int64,
+	filter map[string]string,
+) ([]models.SecretInfo, error) {
+	if userID == 0 {
+		return nil, ErrInvalidArgument
+	}
+	secrets, err := s.storage.ListSecrets(ctx, userID, filter)
+	if err != nil {
+		if errors.Is(err, repository.ErrInvalidArgument) {
+			return nil, ErrInvalidArgument
+		}
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	}
+	return secrets, nil
 }
 
 // Close closes the underlying storage connection.

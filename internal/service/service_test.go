@@ -14,7 +14,28 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const testSecretKey = "test-secret-key"
+const testSecretKey = "test-secret-key-abcdefghijklmnopqrstuvwxyz" // at least 32 characters long
+
+func TestService_NewServer(t *testing.T) {
+
+	t.Run("success", func(t *testing.T) {
+		mockStorage := NewMockStorage(t)
+		_, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty secret key", func(t *testing.T) {
+		mockStorage := NewMockStorage(t)
+		_, err := NewService(mockStorage, "", time.Hour, 24*time.Hour)
+		assert.Error(t, err)
+	})
+
+	t.Run("too short secret key", func(t *testing.T) {
+		mockStorage := NewMockStorage(t)
+		_, err := NewService(mockStorage, "too-short-secret-key", time.Hour, 24*time.Hour)
+		assert.Error(t, err)
+	})
+}
 
 func TestService_RegisterUser(t *testing.T) {
 	ctx := context.Background()
@@ -37,7 +58,8 @@ func TestService_RegisterUser(t *testing.T) {
 			SaveRefreshToken(ctx, int64(1), mock.Anything, "device", mock.Anything).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
 		resp, err := svc.RegisterUser(ctx, loginReq)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), resp.UserID)
@@ -51,8 +73,9 @@ func TestService_RegisterUser(t *testing.T) {
 			RegisterUser(ctx, mock.Anything).
 			Return(int64(0), repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RegisterUser(ctx, loginReq)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RegisterUser(ctx, loginReq)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 
@@ -62,8 +85,9 @@ func TestService_RegisterUser(t *testing.T) {
 			RegisterUser(ctx, mock.Anything).
 			Return(int64(0), repository.ErrAlreadyInStorage)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RegisterUser(ctx, loginReq)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RegisterUser(ctx, loginReq)
 		assert.ErrorIs(t, err, ErrLoginAlreadyTaken)
 	})
 
@@ -73,16 +97,18 @@ func TestService_RegisterUser(t *testing.T) {
 			RegisterUser(ctx, mock.Anything).
 			Return(int64(0), errors.New("db error"))
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RegisterUser(ctx, loginReq)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RegisterUser(ctx, loginReq)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to register user")
 	})
 
 	t.Run("nil userData", func(t *testing.T) {
 		mockStorage := NewMockStorage(t)
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RegisterUser(ctx, nil)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RegisterUser(ctx, nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -105,7 +131,8 @@ func TestService_LoginUser(t *testing.T) {
 			SaveRefreshToken(ctx, int64(1), mock.Anything, "device", mock.Anything).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
 		resp, err := svc.LoginUser(ctx, loginReq)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), resp.UserID)
@@ -119,9 +146,10 @@ func TestService_LoginUser(t *testing.T) {
 			CheckUser(ctx, loginReq.Login).
 			Return(int64(1), hashed, nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
 		wrongReq := &models.LoginRequest{Login: loginReq.Login, Password: "wrong", DeviceName: "device"}
-		_, err := svc.LoginUser(ctx, wrongReq)
+		_, err = svc.LoginUser(ctx, wrongReq)
 		assert.ErrorIs(t, err, ErrWrongUsernamePassword)
 	})
 
@@ -131,8 +159,9 @@ func TestService_LoginUser(t *testing.T) {
 			CheckUser(ctx, loginReq.Login).
 			Return(int64(0), nil, repository.ErrUserNotFound)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.LoginUser(ctx, loginReq)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.LoginUser(ctx, loginReq)
 		assert.ErrorIs(t, err, ErrWrongUsernamePassword)
 	})
 
@@ -142,15 +171,17 @@ func TestService_LoginUser(t *testing.T) {
 			CheckUser(ctx, loginReq.Login).
 			Return(int64(0), nil, repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.LoginUser(ctx, loginReq)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.LoginUser(ctx, loginReq)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 
 	t.Run("nil userData", func(t *testing.T) {
 		mockStorage := NewMockStorage(t)
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.LoginUser(ctx, nil)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.LoginUser(ctx, nil)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -167,7 +198,8 @@ func TestService_RefreshAccess(t *testing.T) {
 			CheckRefreshToken(ctx, userID, refreshToken, device).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
 		token, err := svc.RefreshAccess(ctx, userID, refreshToken, device)
 		require.NoError(t, err)
 		assert.NotEmpty(t, token)
@@ -179,8 +211,9 @@ func TestService_RefreshAccess(t *testing.T) {
 			CheckRefreshToken(ctx, userID, refreshToken, device).
 			Return(repository.ErrRefreshTokenExpiredOrInvalid)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RefreshAccess(ctx, userID, refreshToken, device)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RefreshAccess(ctx, userID, refreshToken, device)
 		assert.ErrorIs(t, err, ErrRefreshTokenExpiredOrInvalid)
 	})
 
@@ -190,15 +223,17 @@ func TestService_RefreshAccess(t *testing.T) {
 			CheckRefreshToken(ctx, userID, refreshToken, device).
 			Return(repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RefreshAccess(ctx, userID, refreshToken, device)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RefreshAccess(ctx, userID, refreshToken, device)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 
 	t.Run("empty refresh token", func(t *testing.T) {
 		mockStorage := NewMockStorage(t)
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, err := svc.RefreshAccess(ctx, userID, nil, device)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, err = svc.RefreshAccess(ctx, userID, nil, device)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "empty refresh token")
 	})
@@ -215,8 +250,9 @@ func TestService_Logout(t *testing.T) {
 			RevokeToken(ctx, userID, device).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.Logout(ctx, userID, device)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.Logout(ctx, userID, device)
 		assert.NoError(t, err)
 	})
 
@@ -226,8 +262,9 @@ func TestService_Logout(t *testing.T) {
 			RevokeToken(ctx, userID, device).
 			Return(repository.ErrNoChanges)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.Logout(ctx, userID, device)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.Logout(ctx, userID, device)
 		assert.ErrorIs(t, err, ErrNoChanges)
 	})
 
@@ -237,8 +274,9 @@ func TestService_Logout(t *testing.T) {
 			RevokeToken(ctx, userID, device).
 			Return(repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.Logout(ctx, userID, device)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.Logout(ctx, userID, device)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -253,8 +291,9 @@ func TestService_LogoutAllDevices(t *testing.T) {
 			RevokeAllTokens(ctx, userID).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.LogoutAllDevices(ctx, userID)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.LogoutAllDevices(ctx, userID)
 		assert.NoError(t, err)
 	})
 
@@ -264,8 +303,9 @@ func TestService_LogoutAllDevices(t *testing.T) {
 			RevokeAllTokens(ctx, userID).
 			Return(repository.ErrNoChanges)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.LogoutAllDevices(ctx, userID)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.LogoutAllDevices(ctx, userID)
 		assert.ErrorIs(t, err, ErrNoChanges)
 	})
 
@@ -275,8 +315,9 @@ func TestService_LogoutAllDevices(t *testing.T) {
 			RevokeAllTokens(ctx, userID).
 			Return(repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.LogoutAllDevices(ctx, userID)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.LogoutAllDevices(ctx, userID)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -299,8 +340,9 @@ func TestService_CreateSecret(t *testing.T) {
 			CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
 		assert.NoError(t, err)
 	})
 
@@ -310,8 +352,9 @@ func TestService_CreateSecret(t *testing.T) {
 			CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata).
 			Return(repository.ErrAlreadyInStorage)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
 		assert.ErrorIs(t, err, ErrSecretConflict)
 	})
 
@@ -321,8 +364,9 @@ func TestService_CreateSecret(t *testing.T) {
 			CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata).
 			Return(repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.CreateSecret(ctx, userID, dataType, name, data, salt, iv, metadata)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -344,7 +388,8 @@ func TestService_GetSecret(t *testing.T) {
 			GetSecret(ctx, userID, dataType, name, version).
 			Return(expectedData, expectedSalt, expectedIv, expectedMetadata, nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
 		data, salt, iv, metadata, err := svc.GetSecret(ctx, userID, dataType, name, version)
 		require.NoError(t, err)
 		assert.Equal(t, expectedData, data)
@@ -359,8 +404,9 @@ func TestService_GetSecret(t *testing.T) {
 			GetSecret(ctx, userID, dataType, name, version).
 			Return(nil, nil, nil, nil, repository.ErrSecretNotFound)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, _, _, _, err := svc.GetSecret(ctx, userID, dataType, name, version)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, _, _, _, err = svc.GetSecret(ctx, userID, dataType, name, version)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
 	})
 
@@ -370,8 +416,9 @@ func TestService_GetSecret(t *testing.T) {
 			GetSecret(ctx, userID, dataType, name, version).
 			Return(nil, nil, nil, nil, repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		_, _, _, _, err := svc.GetSecret(ctx, userID, dataType, name, version)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		_, _, _, _, err = svc.GetSecret(ctx, userID, dataType, name, version)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -387,8 +434,9 @@ func TestService_RollbackSecret(t *testing.T) {
 			RollbackSecret(ctx, userID, name).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.RollbackSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.RollbackSecret(ctx, userID, name)
 		assert.NoError(t, err)
 	})
 
@@ -398,8 +446,9 @@ func TestService_RollbackSecret(t *testing.T) {
 			RollbackSecret(ctx, userID, name).
 			Return(repository.ErrSecretNotFound)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.RollbackSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.RollbackSecret(ctx, userID, name)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
 	})
 
@@ -409,8 +458,9 @@ func TestService_RollbackSecret(t *testing.T) {
 			RollbackSecret(ctx, userID, name).
 			Return(repository.ErrSecretRollbackNotPossible)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.RollbackSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.RollbackSecret(ctx, userID, name)
 		assert.ErrorIs(t, err, ErrRollbackNotPossible)
 	})
 
@@ -420,8 +470,9 @@ func TestService_RollbackSecret(t *testing.T) {
 			RollbackSecret(ctx, userID, name).
 			Return(repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.RollbackSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.RollbackSecret(ctx, userID, name)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -437,8 +488,9 @@ func TestService_DeleteSecret(t *testing.T) {
 			DeleteSecret(ctx, userID, name).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.DeleteSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.DeleteSecret(ctx, userID, name)
 		assert.NoError(t, err)
 	})
 
@@ -448,8 +500,9 @@ func TestService_DeleteSecret(t *testing.T) {
 			DeleteSecret(ctx, userID, name).
 			Return(repository.ErrSecretNotFound)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.DeleteSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.DeleteSecret(ctx, userID, name)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
 	})
 
@@ -459,8 +512,9 @@ func TestService_DeleteSecret(t *testing.T) {
 			DeleteSecret(ctx, userID, name).
 			Return(repository.ErrInvalidArgument)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.DeleteSecret(ctx, userID, name)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.DeleteSecret(ctx, userID, name)
 		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
@@ -479,8 +533,9 @@ func TestService_UpdateSecretData(t *testing.T) {
 			UpdateSecret(ctx, userID, name, data, salt, iv, mock.Anything).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.UpdateSecretData(ctx, userID, name, data, salt, iv)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.UpdateSecretData(ctx, userID, name, data, salt, iv)
 		assert.NoError(t, err)
 	})
 
@@ -490,8 +545,9 @@ func TestService_UpdateSecretData(t *testing.T) {
 			UpdateSecret(ctx, userID, name, data, salt, iv, mock.Anything).
 			Return(repository.ErrSecretNotFound)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.UpdateSecretData(ctx, userID, name, data, salt, iv)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.UpdateSecretData(ctx, userID, name, data, salt, iv)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
 	})
 }
@@ -508,8 +564,9 @@ func TestService_UpdateSecretMetadata(t *testing.T) {
 			UpdateSecret(ctx, userID, name, mock.Anything, mock.Anything, mock.Anything, metadata).
 			Return(nil)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.UpdateSecretMetadata(ctx, userID, name, metadata)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.UpdateSecretMetadata(ctx, userID, name, metadata)
 		assert.NoError(t, err)
 	})
 
@@ -519,9 +576,37 @@ func TestService_UpdateSecretMetadata(t *testing.T) {
 			UpdateSecret(ctx, userID, name, mock.Anything, mock.Anything, mock.Anything, metadata).
 			Return(repository.ErrSecretNotFound)
 
-		svc := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
-		err := svc.UpdateSecretMetadata(ctx, userID, name, metadata)
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
+		require.NoError(t, err)
+		err = svc.UpdateSecretMetadata(ctx, userID, name, metadata)
 		assert.ErrorIs(t, err, ErrSecretNotFound)
+	})
+}
+
+func TestService_ListSecrets(t *testing.T) {
+	mockStorage := NewMockStorage(t)
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		expected := []models.SecretInfo{
+			{Name: "login1", Type: models.DataTypeCredentials, LatestVersion: 2},
+		}
+		mockStorage.EXPECT().
+			ListSecrets(ctx, int64(1), map[string]string{"env": "prod"}).
+			Return(expected, nil)
+
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, time.Hour)
+		require.NoError(t, err)
+		result, err := svc.ListSecrets(ctx, 1, map[string]string{"env": "prod"})
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("invalid user id", func(t *testing.T) {
+		svc, err := NewService(mockStorage, testSecretKey, time.Hour, time.Hour)
+		require.NoError(t, err)
+		_, err = svc.ListSecrets(ctx, 0, nil)
+		assert.ErrorIs(t, err, ErrInvalidArgument)
 	})
 }
 
@@ -529,8 +614,9 @@ func TestService_Close(t *testing.T) {
 	mockStorage := NewMockStorage(t)
 	mockStorage.EXPECT().Close(mock.Anything).Return(nil)
 
-	s := NewService(mockStorage, "secret", time.Hour, time.Hour)
-	err := s.Close(context.Background())
+	s, err := NewService(mockStorage, testSecretKey, time.Hour, time.Hour)
+	require.NoError(t, err)
+	err = s.Close(context.Background())
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }

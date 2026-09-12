@@ -18,6 +18,7 @@ service Custodia {
   rpc DeleteSecret (DeleteSecretRequest) returns (DeleteSecretResponse);
   rpc UpdateSecretData (UpdateSecretDataRequest) returns (UpdateSecretDataResponse);
   rpc UpdateSecretMetadata (UpdateSecretMetadataRequest) returns (UpdateSecretMetadataResponse);
+  rpc ListSecrets (ListSecretsRequest) returns (ListSecretsResponse);
 }
 
 
@@ -120,3 +121,18 @@ message UpdateSecretMetadataRequest {
 }
 
 message UpdateSecretMetadataResponse {}
+
+message ListSecretsRequest {
+  map<string, string> metadata = 1;
+}
+
+message ListSecretsResponse {
+  repeated SecretInfo secrets = 1;
+}
+
+message SecretInfo {
+  string name = 1;
+  DataType type = 2;
+  map<string, string> metadata = 3;
+  uint64 latest_version = 4;
+}
