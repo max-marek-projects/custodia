@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -158,7 +157,7 @@ func (dbs *dbStorage) RegisterUser(ctx context.Context, userData models.UserData
 	`
 	err := dbs.storage.QueryRow(ctx, query, userData.Login, userData.PasswordHash).Scan(&userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, ErrAlreadyInStorage
 		}
 		return 0, fmt.Errorf("failed to add user to storage: %w", err)
@@ -180,7 +179,7 @@ func (dbs *dbStorage) CheckUser(ctx context.Context, username string) (int64, []
 	`
 	err := dbs.storage.QueryRow(ctx, query, username).Scan(&userID, &hashedPassword)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil, ErrUserNotFound
 		}
 		return 0, nil, fmt.Errorf("failed to get user from storage by id: %w", err)
@@ -255,7 +254,7 @@ func (dbs *dbStorage) CheckRefreshToken(ctx context.Context, userID int64, token
         WHERE user_id = $1 AND token_hash = $2 AND device_name = $3 AND revoked_at IS NULL AND expires_at > NOW() 
     `, userID, tokenHash, deviceName).Scan(&unusedVar)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrRefreshTokenExpiredOrInvalid
 		}
 		return fmt.Errorf("failed to get info about refresh token: %w", err)
@@ -354,7 +353,7 @@ func (dbs *dbStorage) CreateSecret(ctx context.Context, userID int64, dataType m
 
 // GetSecret retrieves a secret by userID, type, name, and optionally a specific version.
 // If version is 0, it returns the latest active version. If version > 0, it returns
-// that exact version. Returns sql.ErrNoRows if no matching secret exists.
+// that exact version. Returns pgx.ErrNoRows if no matching secret exists.
 //
 // Parameters:
 //   - ctx: context for cancellation.
@@ -397,7 +396,7 @@ func (dbs *dbStorage) GetSecret(
 		userID, dataType, name, version,
 	).Scan(&data, &salt, &iv, &rawMetadata)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil, nil, nil, ErrSecretNotFound
 		}
 		return nil, nil, nil, nil, fmt.Errorf("failed to get secret: %w", err)
@@ -445,7 +444,7 @@ func (dbs *dbStorage) RollbackSecret(
 	defer tx.Rollback(ctx)
 
 	// MAX() on an empty result set returns a single row with NULL, not
-	// sql.ErrNoRows. Scan into *int64 to distinguish "no rows" from "zero".
+	// pgx.ErrNoRows. Scan into *int64 to distinguish "no rows" from "zero".
 	var maxVersion int64
 	queryMax := `
 		SELECT COALESCE(MAX(version), 0)
@@ -551,7 +550,7 @@ func (dbs *dbStorage) UpdateSecret(ctx context.Context, userID int64, name strin
 	err = tx.QueryRow(ctx, selectQuery, userID, name).
 		Scan(&oldData, &dataType, &oldSalt, &oldIV, &oldRawMetadata, &oldVersion)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrSecretNotFound
 		}
 		return fmt.Errorf("failed to fetch current secret: %w", err)

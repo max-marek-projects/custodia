@@ -174,7 +174,7 @@ func (s *service) RefreshAccess(ctx context.Context, userID int64, refreshToken 
 	if len(refreshToken) == 0 {
 		return "", fmt.Errorf("empty refresh token")
 	}
-	err := s.storage.CheckRefreshToken(ctx, userID, refreshToken, deviceName)
+	err := s.storage.CheckRefreshToken(ctx, userID, auth.HashRefreshToken(string(refreshToken)), deviceName)
 	if err != nil {
 		if errors.Is(err, repository.ErrInvalidArgument) {
 			return "", ErrInvalidArgument

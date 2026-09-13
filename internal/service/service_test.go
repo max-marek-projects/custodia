@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/max-marek-projects/custodia/internal/auth"
 	"github.com/max-marek-projects/custodia/internal/models"
 	"github.com/max-marek-projects/custodia/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -190,12 +191,13 @@ func TestService_RefreshAccess(t *testing.T) {
 	ctx := context.Background()
 	userID := int64(1)
 	refreshToken := []byte("valid_refresh")
+	refreshTokenHash := auth.HashRefreshToken(string(refreshToken))
 	device := "device"
 
 	t.Run("success", func(t *testing.T) {
 		mockStorage := NewMockStorage(t)
 		mockStorage.EXPECT().
-			CheckRefreshToken(ctx, userID, refreshToken, device).
+			CheckRefreshToken(ctx, userID, refreshTokenHash, device).
 			Return(nil)
 
 		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
@@ -208,7 +210,7 @@ func TestService_RefreshAccess(t *testing.T) {
 	t.Run("invalid token", func(t *testing.T) {
 		mockStorage := NewMockStorage(t)
 		mockStorage.EXPECT().
-			CheckRefreshToken(ctx, userID, refreshToken, device).
+			CheckRefreshToken(ctx, userID, refreshTokenHash, device).
 			Return(repository.ErrRefreshTokenExpiredOrInvalid)
 
 		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
@@ -220,7 +222,7 @@ func TestService_RefreshAccess(t *testing.T) {
 	t.Run("invalid argument", func(t *testing.T) {
 		mockStorage := NewMockStorage(t)
 		mockStorage.EXPECT().
-			CheckRefreshToken(ctx, userID, refreshToken, device).
+			CheckRefreshToken(ctx, userID, refreshTokenHash, device).
 			Return(repository.ErrInvalidArgument)
 
 		svc, err := NewService(mockStorage, testSecretKey, time.Hour, 24*time.Hour)
